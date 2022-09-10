@@ -61,5 +61,5 @@ if __name__ == '__main__':
 
     for i, d in enumerate(datasets):
         name = DatasetName(i).name
-        path = f"{args.dir}_{name}_jsonl"
+        path = f"{args.dir}_{name}.jsonl"
         process_data(d, path)
