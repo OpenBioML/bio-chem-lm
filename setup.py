@@ -4,7 +4,7 @@
 
 from setuptools import setup, find_packages
 
-requirements = [ ]
+requirements = ["deepchem", "selfies", "tqdm"]
 
 test_requirements = ['pytest>=3', ]
 
