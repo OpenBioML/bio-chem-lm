@@ -9,6 +9,7 @@ from pathlib import Path
 
 tqdm.pandas()
 
+# this could prob be done better
 class DatasetName(Enum):
     train = 0 
     valid = 1
@@ -36,10 +37,11 @@ def create_dict(smiles):
 
 def process_data(dataset, path):
     dataset = dataset.to_dataframe()
-    dataset["smile"] = dataset["X"]
+    dataset = dataset.rename(columns={"X": "smile"})
 
     dataset["selfie"] = dataset["smile"].progress_apply(smiles_to_selfies)
 
+    # TODO: do we want to store everything or just selfie, smiles, id?
     dataset.to_json(path, orient="records", lines=True)
 
     
@@ -61,5 +63,5 @@ if __name__ == '__main__':
 
     for i, d in enumerate(datasets):
         name = DatasetName(i).name
-        path = f"{args.dir}_{name}.jsonl"
+        path = f"{args.dir}{name}.jsonl"
         process_data(d, path)
