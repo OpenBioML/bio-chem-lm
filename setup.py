@@ -4,7 +4,8 @@
 
 from setuptools import setup, find_packages
 
-requirements = ["transformers[sentencepiece]", "tokenizers", "tqdm", "torch", "datasets", "matplotlib", "mup"]
+requirements = ["transformers[sentencepiece]", "tokenizers", "tqdm", "torch",
+                "datasets", "matplotlib", "mup", "rotary-embedding-torch", "einops"]
 
 test_requirements = ['pytest>=3', ]
 
