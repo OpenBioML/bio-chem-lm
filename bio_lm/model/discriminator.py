@@ -7,6 +7,7 @@ from bio_lm.model.base_model import ElectraModel
 from bio_lm.model.pretrained import ElectraPreTrainedModel
 from transformers.modeling_outputs import ModelOutput
 from transformers.modeling_utils import get_activation
+from mup import MuReadout
 
 
 @dataclass
@@ -45,7 +46,10 @@ class ElectraDiscriminatorPredictions(nn.Module):
         super().__init__()
 
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        self.dense_prediction = nn.Linear(config.hidden_size, 1)
+        if config.mup:
+            self.dense_prediction = MuReadout(config.hidden_size, 1)
+        else:
+            self.dense_prediction = nn.Linear(config.hidden_size, 1)
         self.config = config
 
     def forward(self, discriminator_hidden_states):

@@ -4,6 +4,7 @@ from bio_lm.model.base_model import ElectraModel
 from bio_lm.model.pretrained import ElectraPreTrainedModel
 from transformers.modeling_outputs import MaskedLMOutput
 from transformers.modeling_utils import get_activation
+from mup import MuReadout
 
 
 class ElectraGeneratorPredictions(nn.Module):
@@ -13,7 +14,10 @@ class ElectraGeneratorPredictions(nn.Module):
         super().__init__()
 
         self.LayerNorm = nn.LayerNorm(config.embedding_size)
-        self.dense = nn.Linear(config.hidden_size, config.embedding_size)
+        if config.mup:
+            self.dense = MuReadout(config.embedding_size, config.embedding_size)
+        else:
+            self.dense = nn.Linear(config.hidden_size, config.embedding_size)
 
     def forward(self, generator_hidden_states):
         hidden_states = self.dense(generator_hidden_states)
