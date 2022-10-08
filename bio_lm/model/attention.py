@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 from transformers.modeling_utils import (find_pruneable_heads_and_indices,
                                          prune_linear_layer)
+from rotary_embedding_torch import RotaryEmbedding
+from bio_lm.model.pe import AlibiPositionalBias
 
 
 class ElectraSelfOutput(nn.Module):
@@ -55,6 +57,10 @@ class ElectraSelfAttention(nn.Module):
             self.distance_embedding = nn.Embedding(
                 2 * config.max_position_embeddings - 1, self.attention_head_size
             )
+        elif self.position_embedding_type == "rotary":
+            self.rotary = RotaryEmbedding(dim=self.attention_head_size)
+        elif self.position_embedding_type == "alibi":
+            self.alibi = AlibiPositionalBias(self.num_attention_heads)
 
         self.is_decoder = config.is_decoder
 
@@ -113,6 +119,10 @@ class ElectraSelfAttention(nn.Module):
             # if encoder bi-directional self-attention `past_key_value` is always `None`
             past_key_value = (key_layer, value_layer)
 
+        if self.position_embedding_type == "rotary":
+            query_layer = self.rotary.rotate_queries_or_keys(query_layer)
+            key_layer = self.rotary.rotate_queries_or_keys(key_layer)
+
         # Take the dot product between "query" and "key" to get the raw attention scores.
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
 
@@ -155,6 +165,10 @@ class ElectraSelfAttention(nn.Module):
 
         # attention scaling -> for mup need to rescale by 1/sqrt(dk)
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
+
+        if self.position_embedding_type == "alibi":
+           attention_scores = self.alibi(attention_scores) 
+        
         if attention_mask is not None:
             # Apply the attention mask is (precomputed for all layers in ElectraModel forward() function)
             attention_scores = attention_scores + attention_mask
