@@ -21,10 +21,10 @@ class ElectraEmbeddings(nn.Module):
 
         # self.LayerNorm is not snake-cased to stick with TensorFlow model variable name and be able to load
         # any TensorFlow checkpoint file
-        if config.norm_type == "layer_norm":
-            norm_layer = partial(nn.LayerNorm, num_groups=config.num_groups)
-        elif config.norm_type == "group_norm":
-            norm_layer = nn.GroupNorm
+        if config.norm_layer_type == "layer_norm":
+            norm_layer = nn.LayerNorm
+        elif config.norm_layer_type == "group_norm":
+            norm_layer = partial(nn.GroupNorm, num_groups=config.num_groups)
 
         self.norm = norm_layer(config.embedding_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
@@ -91,6 +91,7 @@ class ElectraEmbeddings(nn.Module):
         if self.position_embedding_type == "absolute":
             position_embeddings = self.position_embeddings(position_ids)
             embeddings += position_embeddings
-        embeddings = self.LayerNorm(embeddings)
+
+        embeddings = self.norm(embeddings)
         embeddings = self.dropout(embeddings)
         return embeddings

@@ -137,6 +137,9 @@ class ElectraConfig(PretrainedConfig):
         self.type_vocab_size = type_vocab_size
         self.initializer_range = initializer_range
         self.layer_norm_eps = layer_norm_eps
+        # passing in 1e-x in config turns to string
+        if isinstance(self.layer_norm_eps, str):
+            self.layer_norm_eps = float(self.layer_norm_eps)
 
         self.summary_type = summary_type
         self.summary_use_proj = summary_use_proj
