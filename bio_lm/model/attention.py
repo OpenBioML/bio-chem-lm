@@ -64,6 +64,12 @@ class ElectraSelfAttention(nn.Module):
 
         self.is_decoder = config.is_decoder
 
+        if config.mup:
+            self.attention_scaling_factor = self.attention_head_size
+        else:
+            self.attention_scaling_factor = math.sqrt(self.attention_head_size)
+        
+
     def transpose_for_scores(self, x):
         new_x_shape = x.size()[:-1] + (
             self.num_attention_heads,
@@ -163,8 +169,8 @@ class ElectraSelfAttention(nn.Module):
                     + relative_position_scores_key
                 )
 
-        # attention scaling -> for mup need to rescale by 1/sqrt(dk)
-        attention_scores = attention_scores / math.sqrt(self.attention_head_size)
+        # attention scaling -> for mup need to rescale to 1/d 
+        attention_scores = attention_scores / self.attention_head_size
 
         if self.position_embedding_type == "alibi":
            attention_scores = self.alibi(attention_scores) 
