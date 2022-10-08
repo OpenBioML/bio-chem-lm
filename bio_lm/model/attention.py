@@ -10,13 +10,17 @@ class ElectraSelfOutput(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        if config.prenorm:
+            self.norm = nn.Identity()
+        else:
+            self.norm = config.norm_layer(config.hidden_size)
+
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
     def forward(self, hidden_states, input_tensor):
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
-        hidden_states = self.LayerNorm(hidden_states + input_tensor)
+        hidden_states = self.norm(hidden_states + input_tensor)
         return hidden_states
 
 
@@ -186,6 +190,11 @@ class ElectraAttention(nn.Module):
         super().__init__()
         self.self = ElectraSelfAttention(config)
         self.output = ElectraSelfOutput(config)
+        if config.prenorm:
+            self.prenorm = config.norm_layer(config.hidden_size)
+        else:
+            self.prenorm = nn.Identity()
+
         self.pruned_heads = set()
 
     def prune_heads(self, heads):
@@ -221,6 +230,8 @@ class ElectraAttention(nn.Module):
         past_key_value=None,
         output_attentions=False,
     ):
+        # if we are doing prenorm instead of postnorm
+        hidden_states = self.prenorm(hidden_states)
         self_outputs = self.self(
             hidden_states,
             attention_mask,

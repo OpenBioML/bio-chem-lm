@@ -1,3 +1,5 @@
+from functools import partial
+import torch.nn as nn
 from transformers.configuration_utils import PretrainedConfig
 
 
@@ -114,6 +116,10 @@ class ElectraConfig(PretrainedConfig):
         pad_token_id=0,
         position_embedding_type="absolute",
         classifier_dropout=None,
+        prenorm=False,
+        mup=False,
+        norm_layer_type="layer_norm",
+        num_groups=1,
         **kwargs
     ):
         super().__init__(pad_token_id=pad_token_id, **kwargs)
@@ -138,3 +144,15 @@ class ElectraConfig(PretrainedConfig):
         self.summary_last_dropout = summary_last_dropout
         self.position_embedding_type = position_embedding_type
         self.classifier_dropout = classifier_dropout
+        # transformers without tears suggests using prenorm
+        self.prenorm = prenorm
+        self.mup = mup
+        self.norm_layer_type = norm_layer_type
+        self.num_groups = num_groups
+
+        if self.norm_layer_type == "layer_norm":
+            self.norm_layer = partial(nn.LayerNorm, eps=self.layer_norm_eps)
+        elif self.norm_layer_type == "group_norm":
+            self.norm_layer = partial(nn.GroupNorm, num_groups=self.num_groups)
+        else:
+            raise ValueError(f"norm_layer_type {self.norm_layer_type} not supported")
