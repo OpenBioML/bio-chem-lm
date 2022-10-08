@@ -1,8 +1,4 @@
 def tokenize_selfies(examples):
-    # if you're not batching
-    if not isinstance(examples, list):
-       examples = [examples] 
-
     tokenized_examples = []
 
     selfies = examples["CAN_SELFIES"]
