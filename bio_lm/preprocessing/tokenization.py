@@ -15,7 +15,13 @@ def tokenize_selfies(examples):
         tokenized_str = " ".join(all_tokens)
         tokenized_examples.append(tokenized_str)
 
+    # need to be named input_ids for DataCollatorForLanguageModeling
     return {"tokenized": tokenized_examples}
+
+    
+def preprocess_fn(examples, tokenizer):
+    result = tokenizer(examples["tokenized"], padding="max_length", truncation=True)
+    return result
 
 
 if __name__ == "__main__":
