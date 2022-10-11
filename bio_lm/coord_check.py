@@ -14,7 +14,7 @@ from bio_lm.preprocessing.tokenization import tokenize_selfies, preprocess_fn
 from bio_lm.train_utils import load_config
 
 
-def create_electra(base_model_config, model_config, mup=False, readout_zero_init=True, query_zero_init=False):
+def create_electra(model_config, base_model_config, mup=False, readout_zero_init=True, query_zero_init=False):
     def gen(config, base_config):
         def f():
             loaded = load_config(config)
@@ -40,7 +40,7 @@ def create_electra(base_model_config, model_config, mup=False, readout_zero_init
 
         return f
 
-    return gen(model_config, base_model_config)
+    return gen(config=model_config, base_config=base_model_config)
 
 
 def lazy_model(base_config, model_configs, mup=False):
