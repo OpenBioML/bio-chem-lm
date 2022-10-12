@@ -5,7 +5,7 @@
 from setuptools import setup, find_packages
 
 requirements = ["transformers[sentencepiece]", "tokenizers", "tqdm", "torch",
-                "datasets", "matplotlib", "mup", "rotary-embedding-torch", "einops"]
+                "datasets", "matplotlib", "mup", "rotary-embedding-torch", "einops", "isort", "black", "wandb",]
 
 test_requirements = ['pytest>=3', ]
 
