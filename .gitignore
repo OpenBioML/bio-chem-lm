@@ -2,6 +2,8 @@
 **jsonl**
 .DS_Store
 *.json
+**wandb**
+*.bsh
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
