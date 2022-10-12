@@ -19,6 +19,11 @@ def parse_args():
     parser.add_argument("--discriminator_config", type=str, default="configs/electra-discriminator-base.json")
     parser.add_argument("--position_embedding_type", type=str, default="alibi")
     
+    # mup params
+    parser.add_argument("--disc_base_shapes", type=str, help="directory to save bsh for mup")
+    parser.add_argument("--gen_base_shapes", type=str, help="directory to save file for mup")
+    parser.add_argument("--mup", action="store_true")
+
     # optimizer params
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--batch_size", type=int, default=32)
@@ -26,15 +31,16 @@ def parse_args():
     # training params
     parser.add_argument("--num_epochs", type=int, default=10)
     parser.add_argument("--num_steps_per_epoch", type=int, default=1000)
-    parser.add_argument("--mup", action="store_true")
     parser.add_argument("--output_dir", type=str, default="exps/")
     parser.add_argument("--num_workers", type=int, default=mp.cpu_count())
     parser.add_argument("--n_warmup_steps", type=int, default=1000)
     parser.add_argument("--global_clip_norm", type=float, default=1.0)
+    parser.add_argument("--debug", action="store_true")
 
     # wandb args
-    parser.add_argument("--wandb_project", type=str, default="openbio-ml")
-    parser.add_argument("--wandb_entity", type=str, default="zanussbaum")
+    parser.add_argument("--wandb", action="store_true")
+    parser.add_argument("--wandb_project", type=str)
+    parser.add_argument("--wandb_entity", type=str)
     parser.add_argument("--wandb_run_name", type=str, default=None)
 
     
