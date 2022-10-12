@@ -114,8 +114,8 @@ def plot_coords(config):
     plot_coord_data(
         df,
         legend="full",
-        save_to=f"{config['output_dir']}/{prm.lower()}_gent_{optimizer}_lr{lr}_nseeds{nseeds}_coord.jpg",
-        suptitle=f"{prm} gent {optimizer} lr={lr} nseeds={nseeds}",
+        save_to=f"{config['output_dir']}/{prm.lower()}_electra_{optimizer}_lr{lr}_nseeds{nseeds}_coord.jpg",
+        suptitle=f"{prm} electra {optimizer} lr={lr} nseeds={nseeds}",
         face_color="xkcd:light grey" if not mup else None,
     )
 
