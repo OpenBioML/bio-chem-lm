@@ -1,4 +1,5 @@
 import getpass
+from functools import partial
 
 from accelerate import Accelerator
 import torch
@@ -90,9 +91,25 @@ def train(config):
         discriminator_config = ElectraConfig(disc_config)
         discriminator = ElectraForPreTraining(discriminator_config)
 
+        discriminator.apply(
+                partial(
+                    model._init_weights,
+                    readout_zero_init=discriminator_config,
+                    query_zero_init=config["query_zero_init"],
+                )
+            )
+
         gen_config = load_config(config["generator_config"])
         generator_config = ElectraConfig(**gen_config)
         generator = ElectraForMaskedLM(generator_config)
+
+        generator.apply(
+                partial(
+                    model._init_weights,
+                    readout_zero_init=generator_config.readout_zero_init,
+                    query_zero_init=config["query_zero_init"],
+                )
+            )
 
     model = Electra(
         discriminator=discriminator,

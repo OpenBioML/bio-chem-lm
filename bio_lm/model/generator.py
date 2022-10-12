@@ -1,4 +1,3 @@
-import torch
 import torch.nn as nn
 from mup import MuReadout
 from transformers.modeling_outputs import MaskedLMOutput
@@ -16,9 +15,16 @@ class ElectraGeneratorPredictions(nn.Module):
 
         self.LayerNorm = nn.LayerNorm(config.embedding_size)
         if config.mup:
-            self.dense = MuReadout(config.embedding_size, config.embedding_size)
+            self.dense = MuReadout(
+                in_features=config.embedding_size,
+                out_features=config.embedding_size,
+                readout_zero_init=config.readout_zero_init,
+                output_mult=config.output_mult,
+            )
         else:
-            self.dense = nn.Linear(config.hidden_size, config.embedding_size)
+            self.dense = nn.Linear(
+                in_features=config.hidden_size, out_features=config.embedding_size
+            )
 
     def forward(self, generator_hidden_states):
         hidden_states = self.dense(generator_hidden_states)
@@ -36,7 +42,9 @@ class ElectraForMaskedLM(ElectraPreTrainedModel):
         self.generator_predictions = ElectraGeneratorPredictions(config)
 
         if config.mup:
-            self.generator_lm_head = MuReadout(config.embedding_size, config.vocab_size)
+            self.generator_lm_head = MuReadout(
+                config.embedding_size, config.vocab_size, output_mult=config.output_mult
+            )
         else:
             self.generator_lm_head = nn.Linear(config.embedding_size, config.vocab_size)
         self.init_weights()

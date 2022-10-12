@@ -1,7 +1,6 @@
 import torch.nn as nn
 from mup import MuReadout
 from mup.init import normal_
-from torch import zero_
 from transformers.modeling_utils import PreTrainedModel
 from transformers.models.electra import load_tf_weights_in_electra
 

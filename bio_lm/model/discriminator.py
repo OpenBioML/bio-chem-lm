@@ -49,7 +49,10 @@ class ElectraDiscriminatorPredictions(nn.Module):
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         if config.mup:
             self.dense_prediction = MuReadout(
-                config.hidden_size, 1, readout_zero_init=True
+                config.hidden_size,
+                1,
+                readout_zero_init=config.readout_zero_init,
+                output_mult=config.output_mult,
             )
         else:
             self.dense_prediction = nn.Linear(config.hidden_size, 1)

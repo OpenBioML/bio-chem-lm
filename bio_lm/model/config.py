@@ -121,6 +121,8 @@ class ElectraConfig(PretrainedConfig):
         mup=False,
         norm_layer_type="layer_norm",
         num_groups=1,
+        output_mult=1,
+        readout_zero_init=False,
         **kwargs,
     ):
         super().__init__(pad_token_id=pad_token_id, **kwargs)
@@ -153,6 +155,8 @@ class ElectraConfig(PretrainedConfig):
         self.mup = mup
         self.norm_layer_type = norm_layer_type
         self.num_groups = num_groups
+        self.output_mult = output_mult
+        self.readout_zero_init = readout_zero_init
 
         if self.norm_layer_type == "layer_norm":
             self.norm_layer = partial(nn.LayerNorm, eps=self.layer_norm_eps)

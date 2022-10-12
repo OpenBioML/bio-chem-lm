@@ -17,11 +17,14 @@ def parse_args():
     parser.add_argument("--generator_config", type=str, default="configs/electra-generator-base.json")
     parser.add_argument("--discriminator_config", type=str, default="configs/electra-discriminator-base.json")
     parser.add_argument("--position_embedding_type", type=str, default="alibi")
+    parser.add_argument("--output_mult", type=int, default=1)
 
     # mup params
     parser.add_argument("--disc_base_shapes", type=str, help="directory to save bsh for mup")
     parser.add_argument("--gen_base_shapes", type=str, help="directory to save file for mup")
     parser.add_argument("--mup", action="store_true")
+    parser.add_argument("--readout_zero_init", action="store_true")
+    parser.add_argument("--query_zero_init", action="store_true")
 
     # optimizer params
     parser.add_argument("--lr", type=float, default=1e-4)
