@@ -32,10 +32,10 @@ def parse_args():
     parser.add_argument("--num_steps_per_epoch", type=int, default=1000)
     parser.add_argument("--output_dir", type=str, default="exps/")
     parser.add_argument("--num_workers", type=int, default=mp.cpu_count())
-    parser.add_argument("--num_warmup_steps", type=int)
-    parser.add_argument("--num_training_steps", type=int)
+    parser.add_argument("--num_warmup_steps", type=int, default=None)
+    parser.add_argument("--num_training_steps", type=int, default=None)
     parser.add_argument("--scheduler", action="store_true")
-    parser.add_argument("--global_clip_norm", type=float)
+    parser.add_argument("--global_clip_norm", type=float, default=None)
     parser.add_argument("--debug", action="store_true")
 
     # wandb args

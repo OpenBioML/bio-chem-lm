@@ -6,7 +6,7 @@ from mup import MuAdam, set_base_shapes
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from transformers import AutoTokenizer, DataCollatorForLanguageModeling
+from transformers import AutoTokenizer, DataCollatorForLanguageModeling, get_linear_schedule_with_warmup
 
 import wandb
 from bio_lm.metrics import MetricDict, format_metrics
@@ -16,7 +16,6 @@ from bio_lm.model.electra import Electra
 from bio_lm.model.generator import ElectraForMaskedLM
 from bio_lm.options import parse_args
 from bio_lm.preprocessing.tokenization import preprocess_fn, tokenize_selfies
-from bio_lm.schedule import get_linear_schedule_with_warmup
 from bio_lm.train_utils import load_config, make_shapes
 
 
@@ -191,9 +190,9 @@ if __name__ == "__main__":
     args = parse_args()
 
     config = {}
-    config.update({k: v for k, v in args.__dict__.items() if (v is not None)})
+    config.update({k: v for k, v in args.__dict__.items()})
 
-    if config["wandb"] or "wandb_entity" in config:
+    if config["wandb"] or config["wandb_entity"]:
         # if we set wandb_entity, we set to True automatically
         config["wandb"] = True
         entity = (
@@ -204,5 +203,9 @@ if __name__ == "__main__":
         name = config["wandb_exp_name"] if "wandb_exp_name" in config else None
         wandb.init(project="bio-chem-lm", entity=entity, name=name)
         wandb.config.update(config)
+
+    print("| configs: ")
+    for k, v in config.items():
+        print("  |", k, " : ", v)
 
     train(config=config)
