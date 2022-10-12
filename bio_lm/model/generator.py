@@ -34,7 +34,10 @@ class ElectraForMaskedLM(ElectraPreTrainedModel):
         self.electra = ElectraModel(config)
         self.generator_predictions = ElectraGeneratorPredictions(config)
 
-        self.generator_lm_head = nn.Linear(config.embedding_size, config.vocab_size)
+        if config.mup:
+            self.generator_lm_head = MuReadout(config.embedding_size, config.vocab_size)
+        else:
+            self.generator_lm_head = nn.Linear(config.embedding_size, config.vocab_size)
         self.init_weights()
 
     def get_output_embeddings(self):
