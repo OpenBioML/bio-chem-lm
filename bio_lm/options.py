@@ -10,30 +10,17 @@ def parse_args():
 
     # data params
     parser.add_argument("--dataset_name", type=str, default="zpn/pubchem_selfies")
-    parser.add_argument(
-        "--tokenizer_name", type=str, default="zpn/pubchem_selfies_tokenizer_wordlevel"
-    )
+    parser.add_argument("--tokenizer_name", type=str, default="zpn/pubchem_selfies_tokenizer_wordlevel")
     parser.add_argument("--mask_prob", type=float, default=0.15)
-    parser.add_argument("--vocab_size", type=int, default=30522)
 
     # model params
-    parser.add_argument(
-        "--generator_config", type=str, default="configs/electra-generator-base.json"
-    )
-    parser.add_argument(
-        "--discriminator_config",
-        type=str,
-        default="configs/electra-discriminator-base.json",
-    )
+    parser.add_argument("--generator_config", type=str, default="configs/electra-generator-base.json")
+    parser.add_argument("--discriminator_config", type=str, default="configs/electra-discriminator-base.json")
     parser.add_argument("--position_embedding_type", type=str, default="alibi")
 
     # mup params
-    parser.add_argument(
-        "--disc_base_shapes", type=str, help="directory to save bsh for mup"
-    )
-    parser.add_argument(
-        "--gen_base_shapes", type=str, help="directory to save file for mup"
-    )
+    parser.add_argument("--disc_base_shapes", type=str, help="directory to save bsh for mup")
+    parser.add_argument("--gen_base_shapes", type=str, help="directory to save file for mup")
     parser.add_argument("--mup", action="store_true")
 
     # optimizer params
