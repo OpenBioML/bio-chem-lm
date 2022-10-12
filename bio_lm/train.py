@@ -145,6 +145,13 @@ def train(config):
             loss = model(**batch)
             loss["loss"].backward()
 
+            if config["global_clip_norm"]:
+                torch.nn.utils.clip_grad_norm_(
+                    model.parameters(),
+                    config["global_clip_norm"],
+                    error_if_nonfinite=True,
+                )
+
             optimizer.step()
 
             if config["scheduler"]:
