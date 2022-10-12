@@ -1,7 +1,6 @@
 import getpass
 
 import torch
-import wandb
 from datasets import load_dataset
 from mup import MuAdam, set_base_shapes
 from torch.optim import Adam
@@ -9,14 +8,16 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoTokenizer, DataCollatorForLanguageModeling
 
+import wandb
 from bio_lm.metrics import MetricDict, format_metrics
 from bio_lm.model.config import ElectraConfig
 from bio_lm.model.discriminator import ElectraForPreTraining
 from bio_lm.model.electra import Electra
 from bio_lm.model.generator import ElectraForMaskedLM
+from bio_lm.options import parse_args
 from bio_lm.preprocessing.tokenization import preprocess_fn, tokenize_selfies
+from bio_lm.schedule import get_linear_schedule_with_warmup
 from bio_lm.train_utils import load_config, make_shapes
-from options import parse_args
 
 
 def load_data(config, tokenizer, split="train"):
@@ -106,6 +107,13 @@ def train(config):
     else:
         optimizer = Adam(model.parameters(), lr=config["lr"])
 
+    if config["scheduler"]:
+        scheduler = get_linear_schedule_with_warmup(
+            optimizer,
+            num_warmup_steps=config["num_warmup_steps"],
+            num_training_steps=config["num_training_steps"],
+        )
+
     train_metrics = MetricDict(
         [
             "loss",
@@ -138,6 +146,9 @@ def train(config):
             loss["loss"].backward()
 
             optimizer.step()
+
+            if config["scheduler"]:
+                scheduler.step()
 
             train_metrics.update(
                 {key: value.detach().cpu().numpy() for key, value in loss.items()}
