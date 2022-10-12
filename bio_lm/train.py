@@ -1,5 +1,6 @@
 import getpass
 
+from accelerate import Accelerator
 import torch
 from datasets import load_dataset
 from mup import MuAdam, set_base_shapes
@@ -7,8 +8,8 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoTokenizer, DataCollatorForLanguageModeling, get_linear_schedule_with_warmup
-
 import wandb
+
 from bio_lm.metrics import MetricDict, format_metrics
 from bio_lm.model.config import ElectraConfig
 from bio_lm.model.discriminator import ElectraForPreTraining
@@ -101,6 +102,12 @@ def train(config):
         config=discriminator_config,
     )
 
+    accelerator = Accelerator()
+
+    device = accelerator.device
+
+    model.to(device)
+
     if config["mup"]:
         optimizer = MuAdam(model.parameters(), lr=config["lr"])
     else:
@@ -132,6 +139,11 @@ def train(config):
         ]
     )
 
+    model, optimizer, train_dataloader, val_dataloader, scheduler = accelerator.prepare(
+        model, optimizer, train_dataloader, val_dataloader, scheduler
+    )
+
+
     for epoch in range(config["num_epochs"]):
         for step in tqdm(range(config["num_steps_per_epoch"])):
             if step == 5 and config["debug"]:
@@ -142,7 +154,7 @@ def train(config):
             model.train()
 
             loss = model(**batch)
-            loss["loss"].backward()
+            accelerator.backward(loss["loss"])
 
             if config["global_clip_norm"]:
                 torch.nn.utils.clip_grad_norm_(
