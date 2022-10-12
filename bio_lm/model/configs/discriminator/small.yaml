@@ -1,5 +1,4 @@
 # this is equivalent to the small electra discriminator
-vocab_size: 30522
 embedding_size: 128
 hidden_size: 128
 num_hidden_layers: 12
