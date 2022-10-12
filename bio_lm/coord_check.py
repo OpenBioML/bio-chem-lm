@@ -10,11 +10,17 @@ from transformers import AutoTokenizer, DataCollatorForLanguageModeling
 from bio_lm.model.config import ElectraConfig
 from bio_lm.model.discriminator import ElectraForPreTraining
 from bio_lm.options import parse_args
-from bio_lm.preprocessing.tokenization import tokenize_selfies, preprocess_fn
+from bio_lm.preprocessing.tokenization import preprocess_fn, tokenize_selfies
 from bio_lm.train_utils import load_config
 
 
-def create_electra(model_config, base_model_config, mup=False, readout_zero_init=True, query_zero_init=False):
+def create_electra(
+    model_config,
+    base_model_config,
+    mup=False,
+    readout_zero_init=True,
+    query_zero_init=False,
+):
     def gen(config, base_config):
         def f():
             loaded = load_config(config)
@@ -31,10 +37,12 @@ def create_electra(model_config, base_model_config, mup=False, readout_zero_init
                 set_base_shapes(model, base_model)
 
             model.apply(
-                partial(model._init_weights,
-                readout_zero_init=readout_zero_init,
-                query_zero_init=query_zero_init,
-              ))
+                partial(
+                    model._init_weights,
+                    readout_zero_init=readout_zero_init,
+                    query_zero_init=query_zero_init,
+                )
+            )
 
             return model
 
@@ -60,7 +68,16 @@ def plot_coords(config):
 
     dataset = load_dataset(config["dataset_name"], split="train", streaming=True)
     dataset = dataset.map(tokenize_selfies, batched=True, batch_size=100)
-    dataset = dataset.map(lambda x: preprocess_fn(x, tokenizer), batched=True, remove_columns=['PUBCHEM_COMPOUND_CID', 'CAN_SELFIES', 'PUBCHEM_OPENEYE_CAN_SMILES', "tokenized"])
+    dataset = dataset.map(
+        lambda x: preprocess_fn(x, tokenizer),
+        batched=True,
+        remove_columns=[
+            "PUBCHEM_COMPOUND_CID",
+            "CAN_SELFIES",
+            "PUBCHEM_OPENEYE_CAN_SMILES",
+            "tokenized",
+        ],
+    )
     dataset = dataset.with_format("torch")
 
     dataloader = DataLoader(
@@ -123,7 +140,7 @@ def plot_coords(config):
 if __name__ == "__main__":
     args = parse_args()
 
-    config = {} 
+    config = {}
     config.update({k: v for k, v in args.__dict__.items() if (v is not None)})
 
     plot_coords(config)

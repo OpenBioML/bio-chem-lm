@@ -3,11 +3,12 @@ from typing import Optional, Tuple
 
 import torch
 import torch.nn as nn
-from bio_lm.model.base_model import ElectraModel
-from bio_lm.model.pretrained import ElectraPreTrainedModel
+from mup import MuReadout
 from transformers.modeling_outputs import ModelOutput
 from transformers.modeling_utils import get_activation
-from mup import MuReadout
+
+from bio_lm.model.base_model import ElectraModel
+from bio_lm.model.pretrained import ElectraPreTrainedModel
 
 
 @dataclass
@@ -47,7 +48,9 @@ class ElectraDiscriminatorPredictions(nn.Module):
 
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         if config.mup:
-            self.dense_prediction = MuReadout(config.hidden_size, 1, readout_zero_init=True)
+            self.dense_prediction = MuReadout(
+                config.hidden_size, 1, readout_zero_init=True
+            )
         else:
             self.dense_prediction = nn.Linear(config.hidden_size, 1)
         self.config = config

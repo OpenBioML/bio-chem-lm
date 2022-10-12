@@ -1,10 +1,10 @@
 import math
-from functools import reduce
 from collections import namedtuple
+from functools import reduce
 
 import torch
-from torch import nn
 import torch.nn.functional as F
+from torch import nn
 
 # copied from lucidrains and updated
 # constants
@@ -233,7 +233,8 @@ class Electra(nn.Module):
         )
 
         # get generator output and get mlm loss
-        logits = self.generator(masked_input,
+        logits = self.generator(
+            masked_input,
             attention_mask,
             token_type_ids,
             position_ids,
@@ -241,12 +242,15 @@ class Electra(nn.Module):
             inputs_embeds,
             output_attentions,
             output_hidden_states,
-            return_dict,)
+            return_dict,
+        )
 
         logits = logits.logits
 
         mlm_loss = F.cross_entropy(
-            logits.view(-1, self.config.vocab_size), gen_labels.view(-1), ignore_index=self.pad_token_id
+            logits.view(-1, self.config.vocab_size),
+            gen_labels.view(-1),
+            ignore_index=self.pad_token_id,
         )
 
         # use mask from before to select logits that need sampling
@@ -264,17 +268,22 @@ class Electra(nn.Module):
         disc_labels = (input_ids != disc_input).float().detach()
 
         # get discriminator predictions of replaced / original
-        non_padded_indices = torch.nonzero(input_ids != self.pad_token_id, as_tuple=True)
+        non_padded_indices = torch.nonzero(
+            input_ids != self.pad_token_id, as_tuple=True
+        )
 
         # get discriminator output and binary cross entropy loss
-        disc_logits = self.discriminator(disc_input, attention_mask,
+        disc_logits = self.discriminator(
+            disc_input,
+            attention_mask,
             token_type_ids,
             position_ids,
             head_mask,
             inputs_embeds,
             output_attentions,
             output_hidden_states,
-            return_dict,)
+            return_dict,
+        )
         disc_logits = disc_logits.logits.reshape_as(disc_labels)
 
         disc_loss = F.binary_cross_entropy_with_logits(

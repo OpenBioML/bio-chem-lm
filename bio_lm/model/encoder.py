@@ -1,11 +1,12 @@
 import torch
 import torch.nn as nn
-from bio_lm.model.attention import ElectraAttention
-from bio_lm.model.output import ElectraOutput
 from transformers.activations import ACT2FN
 from transformers.modeling_outputs import \
     BaseModelOutputWithPastAndCrossAttentions
 from transformers.modeling_utils import apply_chunking_to_forward
+
+from bio_lm.model.attention import ElectraAttention
+from bio_lm.model.output import ElectraOutput
 
 
 class ElectraIntermediate(nn.Module):

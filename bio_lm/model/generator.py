@@ -1,10 +1,11 @@
 import torch
 import torch.nn as nn
-from bio_lm.model.base_model import ElectraModel
-from bio_lm.model.pretrained import ElectraPreTrainedModel
+from mup import MuReadout
 from transformers.modeling_outputs import MaskedLMOutput
 from transformers.modeling_utils import get_activation
-from mup import MuReadout
+
+from bio_lm.model.base_model import ElectraModel
+from bio_lm.model.pretrained import ElectraPreTrainedModel
 
 
 class ElectraGeneratorPredictions(nn.Module):

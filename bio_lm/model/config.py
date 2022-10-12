@@ -1,4 +1,5 @@
 from functools import partial
+
 import torch.nn as nn
 from transformers.configuration_utils import PretrainedConfig
 
@@ -120,7 +121,7 @@ class ElectraConfig(PretrainedConfig):
         mup=False,
         norm_layer_type="layer_norm",
         num_groups=1,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(pad_token_id=pad_token_id, **kwargs)
 

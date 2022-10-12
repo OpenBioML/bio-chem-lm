@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+
 from bio_lm.model.embedding import ElectraEmbeddings
 from bio_lm.model.encoder import ElectraEncoder
 from bio_lm.model.pretrained import ElectraPreTrainedModel

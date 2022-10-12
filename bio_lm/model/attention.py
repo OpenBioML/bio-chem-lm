@@ -2,9 +2,10 @@ import math
 
 import torch
 import torch.nn as nn
+from rotary_embedding_torch import RotaryEmbedding
 from transformers.modeling_utils import (find_pruneable_heads_and_indices,
                                          prune_linear_layer)
-from rotary_embedding_torch import RotaryEmbedding
+
 from bio_lm.model.pe import AlibiPositionalBias
 
 
@@ -68,7 +69,6 @@ class ElectraSelfAttention(nn.Module):
             self.attention_scaling_factor = self.attention_head_size
         else:
             self.attention_scaling_factor = math.sqrt(self.attention_head_size)
-        
 
     def transpose_for_scores(self, x):
         new_x_shape = x.size()[:-1] + (
@@ -169,12 +169,12 @@ class ElectraSelfAttention(nn.Module):
                     + relative_position_scores_key
                 )
 
-        # attention scaling -> for mup need to rescale to 1/d 
+        # attention scaling -> for mup need to rescale to 1/d
         attention_scores = attention_scores / self.attention_head_size
 
         if self.position_embedding_type == "alibi":
-           attention_scores = self.alibi(attention_scores) 
-        
+            attention_scores = self.alibi(attention_scores)
+
         if attention_mask is not None:
             # Apply the attention mask is (precomputed for all layers in ElectraModel forward() function)
             attention_scores = attention_scores + attention_mask

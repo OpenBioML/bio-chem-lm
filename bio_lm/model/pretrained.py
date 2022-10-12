@@ -1,11 +1,12 @@
-from torch import zero_
 import torch.nn as nn
-from bio_lm.model.config import ElectraConfig
-from bio_lm.model.attention import ElectraSelfAttention
+from mup import MuReadout
+from mup.init import normal_
+from torch import zero_
 from transformers.modeling_utils import PreTrainedModel
 from transformers.models.electra import load_tf_weights_in_electra
-from mup.init import normal_
-from mup import MuReadout
+
+from bio_lm.model.attention import ElectraSelfAttention
+from bio_lm.model.config import ElectraConfig
 
 
 class ElectraPreTrainedModel(PreTrainedModel):
@@ -36,10 +37,12 @@ class ElectraPreTrainedModel(PreTrainedModel):
             if isinstance(module, MuReadout) and readout_zero_init:
                 module.weight.data.zero_()
             else:
-                if hasattr(module.weight, 'infshape'):
+                if hasattr(module.weight, "infshape"):
                     normal_(module.weight, mean=0.0, std=self.config.initializer_range)
                 else:
-                    module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+                    module.weight.data.normal_(
+                        mean=0.0, std=self.config.initializer_range
+                    )
             ### End muP
             if module.bias is not None:
                 module.bias.data.zero_()

@@ -1,9 +1,10 @@
 import multiprocessing as mp
 
-from bio_lm.preprocessing.tokenization import tokenize_selfies
 from datasets import load_dataset
 from tokenizers import Tokenizer, models, pre_tokenizers, processors, trainers
 from transformers import PreTrainedTokenizerFast
+
+from bio_lm.preprocessing.tokenization import tokenize_selfies
 
 # this is max length of the longest sequence in the dataset is 1773
 # setting to 512 for now, 86,262 / 89,000,000 are longer than 512 tokens
