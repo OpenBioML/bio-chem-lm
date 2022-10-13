@@ -16,7 +16,7 @@ class ElectraGeneratorPredictions(nn.Module):
         self.LayerNorm = nn.LayerNorm(config.embedding_size)
         if config.mup:
             self.dense = MuReadout(
-                in_features=config.embedding_size,
+                in_features=config.hidden_size,
                 out_features=config.embedding_size,
                 readout_zero_init=config.readout_zero_init,
                 output_mult=config.output_mult,

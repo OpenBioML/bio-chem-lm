@@ -18,7 +18,7 @@ from bio_lm.model.electra import Electra
 from bio_lm.model.generator import ElectraForMaskedLM
 from bio_lm.options import parse_args
 from bio_lm.preprocessing.tokenization import preprocess_fn, tokenize_selfies
-from bio_lm.train_utils import load_config, make_shapes
+from bio_lm.train_utils import load_config, make_shapes, tie_weights
 
 
 def load_data(config, tokenizer, split="train"):
@@ -51,7 +51,6 @@ def train(config):
     tokenizer = AutoTokenizer.from_pretrained(config["tokenizer_name"])
 
     train_dataloader = load_data(config, tokenizer)
-    train_dataloader = iter(train_dataloader)
 
     val_dataloader = load_data(config, tokenizer, split="validation")
 
@@ -111,6 +110,14 @@ def train(config):
                 )
             )
 
+    accelerator = Accelerator()
+    device = accelerator.device
+
+    generator.to(device)
+    discriminator.to(device)
+
+    tie_weights(generator, discriminator)
+
     model = Electra(
         discriminator=discriminator,
         generator=generator,
@@ -118,10 +125,6 @@ def train(config):
         mask_token_id=tokenizer.mask_token_id,
         config=discriminator_config,
     )
-
-    accelerator = Accelerator()
-
-    device = accelerator.device
 
     model.to(device)
 
@@ -160,6 +163,7 @@ def train(config):
         model, optimizer, train_dataloader, val_dataloader, scheduler
     )
 
+    train_dataloader = iter(train_dataloader)
 
     for epoch in range(config["num_epochs"]):
         for step in tqdm(range(config["num_steps_per_epoch"])):

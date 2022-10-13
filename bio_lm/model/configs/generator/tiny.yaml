@@ -1,4 +1,4 @@
-embedding_size: 8
+embedding_size: 32
 hidden_size: 8
 num_hidden_layers: 12
 num_attention_heads: 1

@@ -36,3 +36,9 @@ def make_shapes(config, base_model, model_config, save_dir, generator=False):
     make_base_shapes(base_model, delta_model, savefile=filename)
 
     return filename
+
+    
+def tie_weights(generator, discriminator):
+    generator.electra.embeddings.word_embeddings = discriminator.electra.embeddings.word_embeddings
+    generator.electra.embeddings.position_embeddings = discriminator.electra.embeddings.position_embeddings
+    generator.electra.embeddings.token_type_embeddings = discriminator.electra.embeddings.token_type_embeddings
