@@ -18,6 +18,7 @@ requirements = [
     "black",
     "wandb",
     "accelerate",
+    "torchmetrics",
 ]
 
 test_requirements = [
