@@ -13,7 +13,7 @@ def parse_args():
     # model params
     parser.add_argument("--generator_config", type=str, default="configs/electra-generator-base.json")
     parser.add_argument("--discriminator_config", type=str, default="configs/electra-discriminator-base.json")
-    parser.add_argument("--position_embedding_type", type=str, default="alibi")
+    parser.add_argument("--position_embedding_type", type=str, default="absolute")
     parser.add_argument("--output_mult", type=int, default=1)
 
     # mup params

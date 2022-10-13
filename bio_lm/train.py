@@ -166,7 +166,7 @@ def train(config):
     train_dataloader = iter(train_dataloader)
 
     for epoch in range(config["num_epochs"]):
-        for step in tqdm(range(config["num_steps_per_epoch"])):
+        for step in tqdm(range(config["num_steps_per_epoch"]), desc="Training"):
             if step == 5 and config["debug"]:
                 break
 
@@ -194,9 +194,14 @@ def train(config):
             )
 
         with torch.no_grad():
-            for i, batch in enumerate(val_dataloader):
+            # we only evalute with 1000 steps since there are 10M data points!!
+            for i, batch in enumerate(tqdm(val_dataloader, desc="Validation", total=config["num_steps_per_epoch"])):
                 if i == 5 and config["debug"]:
                     break
+
+                if i == config["num_steps_per_epoch"]:
+                    break
+
                 model.eval()
                 loss = model(**batch)
 
