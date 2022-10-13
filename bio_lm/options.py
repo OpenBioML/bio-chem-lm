@@ -5,9 +5,6 @@ from argparse import ArgumentParser
 def parse_args():
     parser = ArgumentParser()
 
-    # env params
-    parser.add_argument("--gpu", action="store_true")
-
     # data params
     parser.add_argument("--dataset_name", type=str, default="zpn/pubchem_selfies")
     parser.add_argument("--tokenizer_name", type=str, default="zpn/pubchem_selfies_tokenizer_wordlevel")
