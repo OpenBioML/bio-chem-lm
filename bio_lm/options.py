@@ -25,7 +25,8 @@ def parse_args():
 
     # optimizer params
     parser.add_argument("--lr", type=float, default=1e-4)
-    parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument("--train_batch_size", type=int, default=32)
+    parser.add_argument("--validation_batch_size", type=int, default=32)
 
     # training params
     parser.add_argument("--num_epochs", type=int, default=10)

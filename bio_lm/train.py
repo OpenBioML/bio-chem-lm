@@ -24,7 +24,7 @@ from bio_lm.train_utils import load_config, make_shapes, tie_weights
 def load_data(config, tokenizer, split="train"):
     dataset = load_dataset(config["dataset_name"], split=split, streaming=True)
     dataset = dataset.map(
-        tokenize_selfies, batched=True, batch_size=config["batch_size"]
+        tokenize_selfies, batched=True, batch_size=config[f"{split}_batch_size"]
     )
     dataset = dataset.map(
         lambda x: preprocess_fn(x, tokenizer),
@@ -41,7 +41,7 @@ def load_data(config, tokenizer, split="train"):
     dataloader = DataLoader(
         dataset,
         collate_fn=DataCollatorForLanguageModeling(tokenizer),
-        batch_size=config["batch_size"],
+        batch_size=config[f"{split}_batch_size"],
     )
 
     return dataloader
