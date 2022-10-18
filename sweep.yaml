@@ -1,0 +1,69 @@
+method: random
+program: train.py
+project: "bio-chem-lm"
+metric:
+  goal: minimize
+  name: val_loss
+parameters:
+  generator_config:
+    value: "model/configs/generator/tiny.yaml"
+
+  discriminator_config:
+    value: "model/configs/discriminator/tiny.yaml"
+
+  output_mult:
+    values: [1, 8, 64, 256, 512, 1024]
+
+  mup:
+    value: true
+
+  readout_zero_init:
+    value: true
+
+  query_zero_init:
+    values: [false, true]
+
+  lr:
+    distribution: uniform
+    min: 9e-6
+    max: 1e-3
+
+  train_batch_size:
+    value: 128
+
+  validation_batch_size:
+    value: 256
+
+  num_epochs:
+    value: 10
+
+  num_steps_per_epoch:
+    value: 1000
+
+  num_warmup_steps:
+    values: [0, 100, 1000]
+
+  num_training_steps:
+    value: 10000
+
+  scheduler:
+    values: [false, true]
+
+  global_clip_norm:
+    values: [0, 0.2, 0.5, 1]
+
+  wandb:
+    value: true
+
+  wandb_project:
+    value: "bio-chem-lm"
+
+  wandb_entity:
+    value: "zanussbaum"
+
+
+command:
+  - accelerate
+  - launch
+  - ${program}
+  - ${args_no_boolean_flags}
