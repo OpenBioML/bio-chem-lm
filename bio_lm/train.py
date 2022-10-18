@@ -13,6 +13,7 @@ from transformers import (
     DataCollatorForLanguageModeling,
     get_linear_schedule_with_warmup,
 )
+import wandb
 
 from bio_lm.metrics import MetricDict, format_metrics
 from bio_lm.model.config import ElectraConfig
@@ -45,7 +46,6 @@ def load_data(config, tokenizer, split="train"):
         dataset,
         collate_fn=DataCollatorForLanguageModeling(tokenizer),
         batch_size=config[f"{split}_batch_size"],
-        shuffle=True,
     )
 
     return dataloader
@@ -60,6 +60,12 @@ def train(config):
         config=config,
         init_kwargs={"wandb": {"entity": config["wandb_entity"], "name": name}},
     )
+
+    if config["wandb"]:
+        if config["disc_base_shapes"] is None:
+            config["disc_base_shapes"] = f"{wandb.run.dir}/disc_base_shapes"
+        if config["gen_base_shapes"] is None:
+            config["gen_base_shapes"] = f"{wandb.run.dir}/gen_base_shapes"
 
     tokenizer = AutoTokenizer.from_pretrained(config["tokenizer_name"])
 
@@ -171,9 +177,14 @@ def train(config):
         ]
     )
 
-    model, optimizer, train_dataloader, val_dataloader, scheduler = accelerator.prepare(
-        model, optimizer, train_dataloader, val_dataloader, scheduler
-    )
+    if config["scheduler"]:
+        model, optimizer, train_dataloader, val_dataloader, scheduler = accelerator.prepare(
+            model, optimizer, train_dataloader, val_dataloader, scheduler
+        )
+    else:
+        model, optimizer, train_dataloader, val_dataloader = accelerator.prepare(
+            model, optimizer, train_dataloader, val_dataloader 
+        )
 
     train_dataloader = iter(train_dataloader)
 
@@ -189,7 +200,7 @@ def train(config):
             loss = model(**batch)
             accelerator.backward(loss["loss"])
 
-            if config["global_clip_norm"]:
+            if config["global_clip_norm"] and config["global_clip_norm"] > 0:
                 torch.nn.utils.clip_grad_norm_(
                     model.parameters(),
                     config["global_clip_norm"],
