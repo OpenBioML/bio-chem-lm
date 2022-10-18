@@ -11,8 +11,14 @@ parameters:
   discriminator_config:
     value: "model/configs/discriminator/tiny.yaml"
 
+  position_embedding_type:
+    values: ["absolute", "relative_key", "relative_key_query", "rotary", "alibi"]
+
   output_mult:
     values: [1, 8, 64, 256, 512, 1024]
+
+  prenorm:
+    values: [false, true]
 
   mup:
     value: true

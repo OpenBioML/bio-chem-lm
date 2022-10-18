@@ -15,6 +15,7 @@ def parse_args():
     parser.add_argument("--discriminator_config", type=str, default="configs/electra-discriminator-base.json")
     parser.add_argument("--position_embedding_type", type=str, default="absolute")
     parser.add_argument("--output_mult", type=int, default=1)
+    parser.add_argument("--prenorm", action="store_true")
 
     # mup params
     parser.add_argument("--disc_base_shapes", type=str, help="directory to save bsh for mup")
