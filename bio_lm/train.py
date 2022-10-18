@@ -8,8 +8,11 @@ from mup import MuAdam, set_base_shapes
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from transformers import AutoTokenizer, DataCollatorForLanguageModeling, get_linear_schedule_with_warmup
-import wandb
+from transformers import (
+    AutoTokenizer,
+    DataCollatorForLanguageModeling,
+    get_linear_schedule_with_warmup,
+)
 
 from bio_lm.metrics import MetricDict, format_metrics
 from bio_lm.model.config import ElectraConfig
@@ -42,12 +45,22 @@ def load_data(config, tokenizer, split="train"):
         dataset,
         collate_fn=DataCollatorForLanguageModeling(tokenizer),
         batch_size=config[f"{split}_batch_size"],
+        shuffle=True,
     )
 
     return dataloader
 
 
 def train(config):
+    accelerator = Accelerator(log_with="wandb")
+
+    name = config["wandb_exp_name"] if "wandb_exp_name" in config else None
+    accelerator.init_trackers(
+        project_name=config["wandb_project"],
+        config=config,
+        init_kwargs={"wandb": {"entity": config["wandb_entity"], "name": name}},
+    )
+
     tokenizer = AutoTokenizer.from_pretrained(config["tokenizer_name"])
 
     train_dataloader = load_data(config, tokenizer)
@@ -91,26 +104,25 @@ def train(config):
         discriminator = ElectraForPreTraining(discriminator_config)
 
         discriminator.apply(
-                partial(
-                    model._init_weights,
-                    readout_zero_init=discriminator_config,
-                    query_zero_init=config["query_zero_init"],
-                )
+            partial(
+                model._init_weights,
+                readout_zero_init=discriminator_config,
+                query_zero_init=config["query_zero_init"],
             )
+        )
 
         gen_config = load_config(config["generator_config"])
         generator_config = ElectraConfig(**gen_config)
         generator = ElectraForMaskedLM(generator_config)
 
         generator.apply(
-                partial(
-                    model._init_weights,
-                    readout_zero_init=generator_config.readout_zero_init,
-                    query_zero_init=config["query_zero_init"],
-                )
+            partial(
+                model._init_weights,
+                readout_zero_init=generator_config.readout_zero_init,
+                query_zero_init=config["query_zero_init"],
             )
+        )
 
-    accelerator = Accelerator()
     device = accelerator.device
 
     generator.to(device)
@@ -195,7 +207,13 @@ def train(config):
 
         with torch.no_grad():
             # we only evalute with 1000 steps since there are 10M data points!!
-            for i, batch in enumerate(tqdm(val_dataloader, desc="Validation", total=config["num_steps_per_epoch"])):
+            for i, batch in enumerate(
+                tqdm(
+                    val_dataloader,
+                    desc="Validation",
+                    total=config["num_steps_per_epoch"],
+                )
+            ):
                 if i == 5 and config["debug"]:
                     break
 
@@ -215,7 +233,7 @@ def train(config):
         log_val = {f"val_{key}": value for key, value in val_metrics.compute().items()}
 
         if config["wandb"]:
-            wandb.log({**log_train, **log_val})
+            accelerator.log({**log_train, **log_val})
 
         print(format_metrics(log_train, "train", f" epoch {epoch} "))
         print(format_metrics(log_val, "val", f" epoch {epoch} "))
@@ -233,14 +251,9 @@ if __name__ == "__main__":
     if config["wandb"] or config["wandb_entity"]:
         # if we set wandb_entity, we set to True automatically
         config["wandb"] = True
-        entity = (
-            config["wandb_entity"]
-            if "wandb_entity" in config
-            else f"{getpass.getuser()}"
+        config["wandb_entity"] = (
+            config["wandb_entity"] if config["wandb_entity"] else getpass.getuser()
         )
-        name = config["wandb_exp_name"] if "wandb_exp_name" in config else None
-        wandb.init(project="bio-chem-lm", entity=entity, name=name)
-        wandb.config.update(config)
 
     print("| configs: ")
     for k, v in config.items():
