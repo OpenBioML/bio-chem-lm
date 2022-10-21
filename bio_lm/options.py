@@ -16,6 +16,10 @@ def parse_args():
     parser.add_argument("--position_embedding_type", type=str, default="absolute")
     parser.add_argument("--output_mult", type=int, default=1)
     parser.add_argument("--prenorm", action="store_true")
+    parser.add_argument("--embedding_norm_layer_type", type=str, default="layer_norm")
+    parser.add_argument("--embedding_num_groups", type=int, default=1, help="Number of groups for embedding group norm")
+    parser.add_argument("--attn_norm_layer_type", type=str, default="layer_norm")
+    parser.add_argument("--attn_num_groups", type=int, default=1, help="Number of groups for attn group norm")
 
     # mup params
     parser.add_argument("--disc_base_shapes", type=str, help="directory to save bsh for mup")

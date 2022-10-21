@@ -16,7 +16,7 @@ class ElectraSelfOutput(nn.Module):
         if config.prenorm:
             self.norm = nn.Identity()
         else:
-            self.norm = config.norm_layer(config.hidden_size)
+            self.norm = config.attn_norm_layer(config.hidden_size)
 
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
@@ -211,7 +211,7 @@ class ElectraAttention(nn.Module):
         self.self = ElectraSelfAttention(config)
         self.output = ElectraSelfOutput(config)
         if config.prenorm:
-            self.prenorm = config.norm_layer(config.hidden_size)
+            self.prenorm = config.attn_norm_layer(config.hidden_size)
         else:
             self.prenorm = nn.Identity()
 

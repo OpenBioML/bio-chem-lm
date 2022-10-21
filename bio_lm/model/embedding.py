@@ -21,12 +21,8 @@ class ElectraEmbeddings(nn.Module):
 
         # self.LayerNorm is not snake-cased to stick with TensorFlow model variable name and be able to load
         # any TensorFlow checkpoint file
-        if config.norm_layer_type == "layer_norm":
-            norm_layer = nn.LayerNorm
-        elif config.norm_layer_type == "group_norm":
-            norm_layer = partial(nn.GroupNorm, num_groups=config.num_groups)
 
-        self.norm = norm_layer(config.embedding_size, eps=config.layer_norm_eps)
+        self.norm = config.embedding_norm_layer(config.embedding_size)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
         # position_ids (1, len position emb) is contiguous in memory and exported when serialized

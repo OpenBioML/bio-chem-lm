@@ -119,8 +119,10 @@ class ElectraConfig(PretrainedConfig):
         classifier_dropout=None,
         prenorm=False,
         mup=False,
-        norm_layer_type="layer_norm",
-        num_groups=1,
+        embedding_norm_layer_type="layer_norm",
+        embedding_num_groups=1,
+        attn_norm_layer_type="layer_norm",
+        attn_num_groups=1,
         output_mult=1,
         readout_zero_init=False,
         **kwargs,
@@ -153,14 +155,23 @@ class ElectraConfig(PretrainedConfig):
         # transformers without tears suggests using prenorm
         self.prenorm = prenorm
         self.mup = mup
-        self.norm_layer_type = norm_layer_type
-        self.num_groups = num_groups
+        self.embedding_norm_layer_type = embedding_norm_layer_type
+        self.embedding_num_groups = embedding_num_groups
+        self.attn_norm_layer_type = attn_norm_layer_type
+        self.attn_num_groups = attn_num_groups
         self.output_mult = output_mult
         self.readout_zero_init = readout_zero_init
 
-        if self.norm_layer_type == "layer_norm":
-            self.norm_layer = partial(nn.LayerNorm, eps=self.layer_norm_eps)
-        elif self.norm_layer_type == "group_norm":
-            self.norm_layer = partial(nn.GroupNorm, num_groups=self.num_groups)
+        if self.attn_norm_layer_type == "layer_norm":
+            self.attn_norm_layer = partial(nn.LayerNorm, eps=self.layer_norm_eps)
+        elif self.attn_norm_layer_type == "group_norm":
+            self.attn_norm_layer = partial(nn.GroupNorm, num_groups=self.attn_num_groups)
+        else:
+            raise ValueError(f"norm_layer_type {self.norm_layer_type} not supported")
+            
+        if self.embedding_norm_layer_type == "layer_norm":
+            self.embedding_norm_layer = partial(nn.LayerNorm, eps=self.layer_norm_eps)
+        elif self.embedding_norm_layer_type == "group_norm":
+            self.embedding_norm_layer = partial(nn.GroupNorm, num_groups=self.embedding_num_groups)
         else:
             raise ValueError(f"norm_layer_type {self.norm_layer_type} not supported")
