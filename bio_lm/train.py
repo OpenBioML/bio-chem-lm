@@ -104,27 +104,28 @@ def train(config):
         )
 
         set_base_shapes(generator, gen_filename)
+        
     else:
         disc_config = load_config(config["discriminator_config"])
         discriminator_config = ElectraConfig(disc_config)
         discriminator = ElectraForPreTraining(discriminator_config)
 
-        discriminator.apply(
-            partial(
-                model._init_weights,
-                readout_zero_init=discriminator_config,
-                query_zero_init=config["query_zero_init"],
-            )
-        )
-
         gen_config = load_config(config["generator_config"])
         generator_config = ElectraConfig(**gen_config)
         generator = ElectraForMaskedLM(generator_config)
 
-        generator.apply(
+    generator.apply(
             partial(
-                model._init_weights,
+                generator._init_weights,
                 readout_zero_init=generator_config.readout_zero_init,
+                query_zero_init=config["query_zero_init"],
+            )
+        ) 
+
+    discriminator.apply(
+            partial(
+                discriminator._init_weights,
+                readout_zero_init=discriminator_config.readout_zero_init,
                 query_zero_init=config["query_zero_init"],
             )
         )
