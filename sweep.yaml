@@ -20,6 +20,18 @@ parameters:
   prenorm:
     values: [false, true]
 
+  attn_norm_layer_type:
+    values: ["layer_norm", "group_norm"]
+
+  attn_num_groups:
+    values: [1, 2, 4, 8, 16]
+
+  embedding_norm_layer_type:
+    values: ["layer_norm", "group_norm"]
+
+  embedding_num_groups:
+    values: [1, 2, 4, 8, 16]
+
   mup:
     value: true
 
