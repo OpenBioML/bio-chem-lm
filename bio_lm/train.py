@@ -14,7 +14,6 @@ from transformers import (
     DataCollatorForLanguageModeling,
     get_linear_schedule_with_warmup,
 )
-import wandb
 
 from bio_lm.metrics import MetricDict, format_metrics
 from bio_lm.model.config import ElectraConfig
@@ -28,6 +27,7 @@ from bio_lm.train_utils import load_config, make_shapes, tie_weights
 
 def load_data(config, tokenizer, split="train"):
     dataset = load_dataset(config["dataset_name"], split=split, streaming=True)
+    dataset = dataset.shuffle(buffer_size=10_000)
     dataset = dataset.map(
         tokenize_selfies, batched=True, batch_size=config[f"{split}_batch_size"]
     )
@@ -52,27 +52,12 @@ def load_data(config, tokenizer, split="train"):
     return dataloader
 
 
-def train(config):
-    accelerator = Accelerator(log_with="wandb")
-
-    name = config["wandb_exp_name"] if "wandb_exp_name" in config else None
-    accelerator.init_trackers(
-        project_name=config["wandb_project"],
-        config=config,
-        init_kwargs={"wandb": {"entity": config["wandb_entity"], "name": name}},
-    )
-
-    if config["wandb"]:
-        if config["disc_base_shapes"] is None:
-            config["disc_base_shapes"] = f"{wandb.run.dir}/disc_base_shapes"
-        if config["gen_base_shapes"] is None:
-            config["gen_base_shapes"] = f"{wandb.run.dir}/gen_base_shapes"
-
+def train(accelerator, config):
     tokenizer = AutoTokenizer.from_pretrained(config["tokenizer_name"])
 
-    train_dataloader = load_data(config, tokenizer)
-
-    val_dataloader = load_data(config, tokenizer, split="validation")
+    with accelerator.main_process_first():
+        train_dataloader = load_data(config, tokenizer)
+        val_dataloader = load_data(config, tokenizer, split="validation")
 
     if config["mup"]:
         # generate the base shapes file
@@ -182,18 +167,28 @@ def train(config):
     )
 
     if config["scheduler"]:
-        model, optimizer, train_dataloader, val_dataloader, scheduler = accelerator.prepare(
+        (
+            model,
+            optimizer,
+            train_dataloader,
+            val_dataloader,
+            scheduler,
+        ) = accelerator.prepare(
             model, optimizer, train_dataloader, val_dataloader, scheduler
         )
     else:
         model, optimizer, train_dataloader, val_dataloader = accelerator.prepare(
-            model, optimizer, train_dataloader, val_dataloader 
+            model, optimizer, train_dataloader, val_dataloader
         )
 
     train_dataloader = iter(train_dataloader)
 
     for epoch in range(config["num_epochs"]):
-        for step in tqdm(range(config["num_steps_per_epoch"]), desc="Training"):
+        for step in tqdm(
+            range(config["num_steps_per_epoch"]),
+            desc="Training",
+            disable=not accelerator.is_local_main_process,
+        ):
             if step == 5 and config["debug"]:
                 break
 
@@ -205,20 +200,26 @@ def train(config):
             accelerator.backward(loss["loss"])
 
             if config["global_clip_norm"] and config["global_clip_norm"] > 0:
-                torch.nn.utils.clip_grad_norm_(
-                    model.parameters(),
-                    config["global_clip_norm"],
-                    error_if_nonfinite=True,
-                )
+                if accelerator.distributed_type == DistributedType.DEEPSPEED:
+                    if accelerator.sync_gradients:
+                        accelerator.clip_grad_norm_(
+                            model.parameters(), config["global_clip_norm"]
+                        )
+                else:
+                    torch.nn.utils.clip_grad_norm_(
+                        model.parameters(),
+                        config["global_clip_norm"],
+                        error_if_nonfinite=True,
+                    )
 
             optimizer.step()
 
             if config["scheduler"]:
                 scheduler.step()
 
-            train_metrics.update(
-                {key: value.detach().cpu().numpy() for key, value in loss.items()}
-            )
+            loss = accelerator.gather_for_metrics(loss)
+
+            train_metrics.update({key: value.detach() for key, value in loss.items()})
 
         with torch.no_grad():
             # we only evalute with 1000 steps since there are 10M data points!!
@@ -227,6 +228,7 @@ def train(config):
                     val_dataloader,
                     desc="Validation",
                     total=config["num_steps_per_epoch"],
+                    disable=not accelerator.is_local_main_process,
                 )
             ):
                 if i == 5 and config["debug"]:
@@ -238,9 +240,9 @@ def train(config):
                 model.eval()
                 loss = model(**batch)
 
-                val_metrics.update(
-                    {key: value.detach().cpu().numpy() for key, value in loss.items()}
-                )
+                loss = accelerator.gather_for_metrics(loss)
+
+                val_metrics.update({key: value.detach() for key, value in loss.items()})
 
         log_train = {
             f"train_{key}": value for key, value in train_metrics.compute().items()
@@ -250,8 +252,8 @@ def train(config):
         if config["wandb"]:
             accelerator.log({**log_train, **log_val})
 
-        print(format_metrics(log_train, "train", f" epoch {epoch} "))
-        print(format_metrics(log_val, "val", f" epoch {epoch} "))
+        accelerator.print(format_metrics(log_train, "train", f" epoch {epoch} "))
+        accelerator.print(format_metrics(log_val, "val", f" epoch {epoch} "))
 
         train_metrics.reset_metrics()
         val_metrics.reset_metrics()
@@ -267,6 +269,8 @@ def train(config):
 
 
 if __name__ == "__main__":
+    accelerator = Accelerator(log_with="wandb")
+
     args = parse_args()
 
     config = {}
@@ -279,8 +283,22 @@ if __name__ == "__main__":
             config["wandb_entity"] if config["wandb_entity"] else getpass.getuser()
         )
 
-    print("| configs: ")
-    for k, v in config.items():
-        print("  |", k, " : ", v)
+    name = config["wandb_exp_name"] if "wandb_exp_name" in config else None
+    accelerator.init_trackers(
+        project_name=config["wandb_project"],
+        config=config,
+        init_kwargs={"wandb": {"entity": config["wandb_entity"], "name": name}},
+    )
 
-    train(config=config)
+    if config["save_model"]:
+        # create save dir with random name
+        if not os.path.exists(config["save_dir"]):
+            # only save once per server (not sure if needed?)
+            if accelerator.is_local_main_process:
+                os.makedirs(config["save_dir"])
+
+    accelerator.print("| configs: ")
+    for k, v in config.items():
+        accelerator.print("  |", k, " : ", v)
+
+    train(accelerator=accelerator, config=config)

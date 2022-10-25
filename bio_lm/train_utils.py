@@ -16,14 +16,19 @@ def load_config(file):
     return config
 
 
-def make_shapes(config, base_model, model_config, save_dir, generator=False):
-    delta_config = deepcopy(config)
-    delta_config.update(load_config(model_config))
+def make_shapes(base_model_config, delta_model_config, save_dir, generator=False):
+    base_model_config = load_config(base_model_config)
+    base_config = ElectraConfig(**base_model_config)
+
+    delta_config = deepcopy(base_model_config)
+    delta_config.update(load_config(delta_model_config))
 
     delta_config = ElectraConfig(**delta_config)
     if generator:
+        base_model = ElectraForMaskedLM(base_config)
         delta_model = ElectraForMaskedLM(delta_config)
     else:
+        base_model = ElectraForPreTraining(base_config)
         delta_model = ElectraForPreTraining(delta_config)
 
     if not os.path.exists(save_dir):
