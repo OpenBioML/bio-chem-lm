@@ -74,19 +74,27 @@ def train(config):
     val_dataloader = load_data(config, tokenizer, split="validation")
 
     if config["mup"]:
+        # generate the base shapes file
+        disc_filename = make_shapes(
+            config["discriminator_base_config"],
+            delta_model_config="model/configs/discriminator/small.yaml",
+            save_dir=config["disc_base_shapes"],
+            generator=False,
+        )
+
+        gen_filename = make_shapes(
+            config["generator_base_config"],
+            delta_model_config="model/configs/generator/small.yaml",
+            save_dir=config["gen_base_shapes"],
+            generator=True,
+        )
+
         disc_config = load_config(config["discriminator_config"])
         disc_config["mup"] = True
         disc_config["vocab_size"] = tokenizer.vocab_size
         discriminator_config = ElectraConfig(**disc_config)
         discriminator = ElectraForPreTraining(discriminator_config)
 
-        disc_filename = make_shapes(
-            disc_config,
-            discriminator,
-            model_config="model/configs/discriminator/small.yaml",
-            save_dir=config["disc_base_shapes"],
-            generator=False,
-        )
         set_base_shapes(discriminator, disc_filename)
 
         gen_config = load_config(config["generator_config"])
@@ -95,16 +103,8 @@ def train(config):
         generator_config = ElectraConfig(**gen_config)
         generator = ElectraForMaskedLM(generator_config)
 
-        gen_filename = make_shapes(
-            gen_config,
-            generator,
-            model_config="model/configs/generator/small.yaml",
-            save_dir=config["gen_base_shapes"],
-            generator=True,
-        )
-
         set_base_shapes(generator, gen_filename)
-        
+
     else:
         disc_config = load_config(config["discriminator_config"])
         discriminator_config = ElectraConfig(disc_config)
@@ -115,20 +115,20 @@ def train(config):
         generator = ElectraForMaskedLM(generator_config)
 
     generator.apply(
-            partial(
-                generator._init_weights,
-                readout_zero_init=generator_config.readout_zero_init,
-                query_zero_init=config["query_zero_init"],
-            )
-        ) 
+        partial(
+            generator._init_weights,
+            readout_zero_init=generator_config.readout_zero_init,
+            query_zero_init=config["query_zero_init"],
+        )
+    )
 
     discriminator.apply(
-            partial(
-                discriminator._init_weights,
-                readout_zero_init=discriminator_config.readout_zero_init,
-                query_zero_init=config["query_zero_init"],
-            )
+        partial(
+            discriminator._init_weights,
+            readout_zero_init=discriminator_config.readout_zero_init,
+            query_zero_init=config["query_zero_init"],
         )
+    )
 
     device = accelerator.device
 
