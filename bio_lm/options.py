@@ -22,6 +22,8 @@ def parse_args():
     parser.add_argument("--embedding_num_groups", type=int, default=1, help="Number of groups for embedding group norm")
     parser.add_argument("--attn_norm_layer_type", type=str, default="layer_norm")
     parser.add_argument("--attn_num_groups", type=int, default=1, help="Number of groups for attn group norm")
+    parser.add_argument("--save_model", action="store_true")
+    parser.add_argument("--save_dir", type=str, default="saved_models/")
 
     # mup params
     parser.add_argument("--disc_base_shapes", type=str, help="directory to save bsh for mup")

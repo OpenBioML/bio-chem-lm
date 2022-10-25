@@ -1,8 +1,9 @@
 import getpass
+import os
 from functools import partial
 
-from accelerate import Accelerator
 import torch
+from accelerate import Accelerator, DistributedType
 from datasets import load_dataset
 from mup import MuAdam, set_base_shapes
 from torch.optim import Adam
@@ -254,6 +255,15 @@ def train(config):
 
         train_metrics.reset_metrics()
         val_metrics.reset_metrics()
+
+        if config["save_model"]:
+            accelerator.wait_for_everyone()
+            unwrapped_model = accelerator.unwrap_model(model)
+            accelerator.save(
+                unwrapped_model.state_dict(), f"{config['save_dir']}/model_{epoch}.pt"
+            )
+
+    accelerator.end_training()
 
 
 if __name__ == "__main__":
