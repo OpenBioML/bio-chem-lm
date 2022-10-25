@@ -166,7 +166,8 @@ def train(config):
             "disc_loss",
             "gen_acc",
             "disc_acc",
-        ]
+        ],
+        device=device,
     )
     val_metrics = MetricDict(
         [
@@ -175,7 +176,8 @@ def train(config):
             "disc_loss",
             "gen_acc",
             "disc_acc",
-        ]
+        ],
+        device=device,
     )
 
     if config["scheduler"]:

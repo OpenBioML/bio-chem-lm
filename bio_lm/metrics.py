@@ -2,8 +2,8 @@ from torchmetrics import MeanMetric
 
 
 class MetricDict:
-    def __init__(self, names) -> None:
-        self.metrics = {name: MeanMetric() for name in names}
+    def __init__(self, names, device) -> None:
+        self.metrics = {name: MeanMetric().to(device) for name in names}
 
     def update(self, values):
         for name in self.metrics:
