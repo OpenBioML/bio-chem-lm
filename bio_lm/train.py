@@ -4,6 +4,7 @@ from functools import partial
 
 import torch
 from accelerate import Accelerator, DistributedType
+from accelerate.utils import set_seed
 from datasets import load_dataset
 from mup import MuAdam, set_base_shapes
 from torch.optim import Adam
@@ -27,7 +28,7 @@ from bio_lm.train_utils import load_config, make_shapes, tie_weights
 
 def load_data(config, tokenizer, split="train"):
     dataset = load_dataset(config["dataset_name"], split=split, streaming=True)
-    dataset = dataset.shuffle(buffer_size=10_000)
+    dataset = dataset.shuffle(seed=config["seed"], buffer_size=10_000)
     dataset = dataset.map(
         tokenize_selfies, batched=True, batch_size=config[f"{split}_batch_size"]
     )
@@ -53,6 +54,8 @@ def load_data(config, tokenizer, split="train"):
 
 
 def train(accelerator, config):
+    set_seed(config["seed"])
+    accelerator.print(f"NUM GPUS: {accelerator.num_processes}")
     tokenizer = AutoTokenizer.from_pretrained(config["tokenizer_name"])
 
     with accelerator.main_process_first():
@@ -227,14 +230,14 @@ def train(accelerator, config):
                 tqdm(
                     val_dataloader,
                     desc="Validation",
-                    total=config["num_steps_per_epoch"],
+                    total=config["num_eval_steps"],
                     disable=not accelerator.is_local_main_process,
                 )
             ):
                 if i == 5 and config["debug"]:
                     break
 
-                if i == config["num_steps_per_epoch"]:
+                if i == config["num_eval_steps"]:
                     break
 
                 model.eval()
