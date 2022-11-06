@@ -170,7 +170,7 @@ class ElectraSelfAttention(nn.Module):
                 )
 
         # attention scaling -> for mup need to rescale to 1/d
-        attention_scores = attention_scores / self.attention_head_size
+        attention_scores = attention_scores / self.attention_scaling_factor
 
         if self.position_embedding_type == "alibi":
             attention_scores = self.alibi(attention_scores)
