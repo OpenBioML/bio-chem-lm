@@ -67,7 +67,7 @@ def get_mask_subset_with_prob(mask, prob):
     _, sampled_indices = rand.topk(max_masked, dim=-1)
 
     # mask valid tokens -> set to 0
-    # why do we add 1? -> we never mask a mask token!
+    # why do we add 1? -> https://github.com/lucidrains/electra-pytorch/issues/5
     sampled_indices = (sampled_indices + 1).masked_fill_(mask_excess, 0)
 
     new_mask = torch.zeros((batch, seq_len + 1), device=device)
