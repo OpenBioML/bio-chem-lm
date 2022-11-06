@@ -46,7 +46,8 @@ def load_data(config, tokenizer, split="train"):
 
     dataloader = DataLoader(
         dataset,
-        collate_fn=DataCollatorForLanguageModeling(tokenizer),
+        # we set mlm to false since we do MLM in the `Electra` model
+        collate_fn=DataCollatorForLanguageModeling(tokenizer, mlm=False, mlm_probability=0),
         batch_size=config[f"{split}_batch_size"],
     )
 
