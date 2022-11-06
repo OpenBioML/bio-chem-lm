@@ -4,60 +4,138 @@ from functools import partial
 from datasets import load_dataset
 from mup import set_base_shapes
 from mup.coord_check import get_coord_data, plot_coord_data
+import torch
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, DataCollatorForLanguageModeling
 
 from bio_lm.model.config import ElectraConfig
 from bio_lm.model.discriminator import ElectraForPreTraining
+from bio_lm.model.generator import ElectraForMaskedLM
+from bio_lm.model.electra import Electra
 from bio_lm.options import parse_args
 from bio_lm.preprocessing.tokenization import preprocess_fn, tokenize_selfies
-from bio_lm.train_utils import load_config
+from bio_lm.train_utils import load_config, tie_weights
+
+
+BASE = "model/configs/{model_type}/{size}"
 
 
 def create_electra(
     model_config,
     base_model_config,
+    pad_id,
+    vocab_size,
+    mask_id,
     mup=False,
     readout_zero_init=True,
     query_zero_init=False,
 ):
-    def gen(config, base_config):
+    def gen(size, base_size):
         def f():
-            loaded = load_config(config)
-            loaded["mup"] = mup
-            model_config = ElectraConfig(**loaded)
-            model = ElectraForPreTraining(model_config)
-            if mup is False:
-                set_base_shapes(model, None, rescale_params=False)
-            else:
-                loaded_base = load_config(base_config)
-                loaded_base["mup"] = mup
-                base_model_config = ElectraConfig(**loaded_base)
-                base_model = ElectraForPreTraining(base_model_config)
-                set_base_shapes(model, base_model)
+            disc_config = load_config(
+                BASE.format(model_type="discriminator", size=size)
+            )
+            disc_config["mup"] = mup
+            disc_model_config = ElectraConfig(**disc_config)
+            discriminator = ElectraForPreTraining(disc_model_config)
 
-            model.apply(
+            gen_config = load_config(BASE.format(model_type="generator", size=size))
+            gen_config["mup"] = mup
+            gen_config["vocab_size"] = vocab_size
+            gen_model_config = ElectraConfig(**gen_config)
+            generator = ElectraForMaskedLM(gen_model_config)
+
+            electra = Electra(
+                discriminator=discriminator,
+                generator=generator,
+                pad_token_id=pad_id,
+                mask_token_id=mask_id,
+                config=gen_model_config,
+            )
+
+            tie_weights(generator, discriminator)
+
+            generator.apply(
                 partial(
-                    model._init_weights,
+                    generator._init_weights,
                     readout_zero_init=readout_zero_init,
                     query_zero_init=query_zero_init,
                 )
             )
 
-            return model
+            discriminator.apply(
+                partial(
+                    discriminator._init_weights,
+                    readout_zero_init=readout_zero_init,
+                    query_zero_init=query_zero_init,
+                )
+            )
+
+            if mup is False:
+                set_base_shapes(electra, None, rescale_params=False)
+            else:
+                base_disc_config = load_config(
+                    BASE.format(model_type="discriminator", size=base_size)
+                )
+                base_disc_config["mup"] = mup
+                base_disc_model_config = ElectraConfig(**base_disc_config)
+                base_discriminator = ElectraForPreTraining(base_disc_model_config)
+
+                base_gen_config = load_config(
+                    BASE.format(model_type="generator", size=base_size)
+                )
+                base_gen_config["mup"] = mup
+                base_gen_config["vocab_size"] = vocab_size
+                base_gen_model_config = ElectraConfig(**base_gen_config)
+                base_generator = ElectraForMaskedLM(base_gen_model_config)
+
+                tie_weights(base_generator, base_discriminator)
+
+                base_generator.apply(
+                    partial(
+                        generator._init_weights,
+                        readout_zero_init=readout_zero_init,
+                        query_zero_init=query_zero_init,
+                    )
+                )
+
+                base_discriminator.apply(
+                    partial(
+                        discriminator._init_weights,
+                        readout_zero_init=readout_zero_init,
+                        query_zero_init=query_zero_init,
+                    )
+                )
+
+
+                base_electra = Electra(
+                    discriminator=base_discriminator,
+                    generator=base_generator,
+                    pad_token_id=pad_id,
+                    mask_token_id=mask_id,
+                    config=gen_model_config,
+                )
+
+
+                set_base_shapes(electra, base_electra)
+
+            return electra
 
         return f
 
-    return gen(config=model_config, base_config=base_model_config)
+    return gen(size=model_config, base_size=base_model_config)
 
 
-def lazy_model(base_config, model_configs, mup=False):
+def lazy_model(base_config, model_configs, pad_id, vocab_size, mask_id, mup=False):
     r = [128, 1024, 2048, 3072]
     return {
         val: create_electra(
-            base_model_config=base_config,
             model_config=c,
+            base_model_config=base_config,
             mup=mup,
+            pad_id=pad_id,
+            vocab_size=vocab_size,
+            mask_id=mask_id,
         )
         for val, c in zip(r, model_configs)
     }
@@ -82,7 +160,7 @@ def plot_coords(config):
 
     dataloader = DataLoader(
         dataset,
-        collate_fn=DataCollatorForLanguageModeling(tokenizer),
+        collate_fn=DataCollatorForLanguageModeling(tokenizer, mlm=False, mlm_probability=0),
     )
 
     mup = config["mup"]
@@ -91,19 +169,22 @@ def plot_coords(config):
     nsteps = 5
     lr = config["lr"]
 
-    base_config = "model/configs/discriminator/tiny.yaml"
+    base_config = "tiny.yaml"
 
     configs = [
-        "model/configs/discriminator/tiny.yaml",
-        "model/configs/discriminator/small.yaml",
-        "model/configs/discriminator/medium.yaml",
-        "model/configs/discriminator/large.yaml",
+        "tiny.yaml",
+        "small.yaml",
+        "medium.yaml",
+        "large.yaml",
     ]
 
     models = lazy_model(
         base_config=base_config,
         model_configs=configs,
         mup=mup,
+        pad_id=tokenizer.pad_token_id,
+        mask_id=tokenizer.mask_token_id,
+        vocab_size=tokenizer.vocab_size,
     )
 
     df = get_coord_data(
@@ -115,9 +196,9 @@ def plot_coords(config):
         flatten_input=False,
         nseeds=nseeds,
         nsteps=nsteps,
-        lossfn="xent",
-        cuda=config["gpu"],
         dict_in_out=True,
+        output_name="loss",
+        cuda=torch.cuda.is_available(),
     )
 
     prm = "μP" if mup else "SP"
@@ -130,10 +211,12 @@ def plot_coords(config):
 
     plot_coord_data(
         df,
-        legend="full",
-        save_to=f"{config['output_dir']}/{prm.lower()}_electra_{optimizer}_lr{lr}_nseeds{nseeds}_coord.jpg",
-        suptitle=f"{prm} electra {optimizer} lr={lr} nseeds={nseeds}",
+        legend="auto",
+        save_to=f"{config['output_dir']}/{prm.lower()}_electra_model_{optimizer}_lr{lr}_nseeds{nseeds}_coord.jpg",
+        suptitle=f"{prm} electra model {optimizer} lr={lr} nseeds={nseeds}",
         face_color="xkcd:light grey" if not mup else None,
+        name_not_contains="out[",
+        name_contains="electra"
     )
 
 
