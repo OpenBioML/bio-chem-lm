@@ -56,7 +56,6 @@ def create_electra(
                 config=gen_model_config,
             )
 
-
             if mup is False:
                 set_base_shapes(electra, None)
             else:
@@ -92,7 +91,7 @@ def create_electra(
                 partial(
                     electra._init_weights,
                     readout_zero_init=readout_zero_init,
-                    query_zero_init=query_zero_init, 
+                    query_zero_init=query_zero_init,
                 )
             )
 
@@ -136,9 +135,8 @@ def plot_coords(config):
     dataset = dataset.with_format("torch")
 
     dataloader = DataLoader(
-        dataset,
-        collate_fn=DataCollatorForLanguageModeling(tokenizer, mlm=False)
-    ) 
+        dataset, collate_fn=DataCollatorForLanguageModeling(tokenizer, mlm=False)
+    )
 
     mup = config["mup"]
     optimizer = "adam"
