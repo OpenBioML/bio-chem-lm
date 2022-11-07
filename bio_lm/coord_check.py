@@ -36,6 +36,7 @@ def create_electra(
                 BASE.format(model_type="discriminator", size=size)
             )
             disc_config["mup"] = mup
+            disc_config["vocab_size"] = vocab_size
             disc_model_config = ElectraConfig(**disc_config)
             discriminator = ElectraForPreTraining(disc_model_config)
 
@@ -63,6 +64,7 @@ def create_electra(
                     BASE.format(model_type="discriminator", size=base_size)
                 )
                 base_disc_config["mup"] = mup
+                base_disc_config["vocab_size"] = vocab_size
                 base_disc_model_config = ElectraConfig(**base_disc_config)
                 base_discriminator = ElectraForPreTraining(base_disc_model_config)
 
