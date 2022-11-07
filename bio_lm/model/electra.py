@@ -5,6 +5,7 @@ from functools import reduce
 import torch
 import torch.nn.functional as F
 from torch import nn
+from bio_lm.model.pretrained import ElectraPreTrainedModel
 
 # copied from lucidrains and updated
 # constants
@@ -122,7 +123,7 @@ class HiddenLayerExtractor(nn.Module):
 # main electra class
 
 
-class Electra(nn.Module):
+class Electra(ElectraPreTrainedModel):
     def __init__(
         self,
         generator,
@@ -142,7 +143,7 @@ class Electra(nn.Module):
         gen_weight=1.0,
         temperature=1.0,
     ):
-        super().__init__()
+        super().__init__(config=config)
 
         self.generator = generator
         self.discriminator = discriminator
@@ -187,82 +188,55 @@ class Electra(nn.Module):
         output_hidden_states=None,
         return_dict=None,
     ):
-        replace_prob = prob_mask_like(input_ids, self.replace_prob)
+        gen_labels = input_ids.clone()
+        # We sample a few tokens in each sequence for MLM training (with probability `self.mlm_probability`)
+        replace_prob = torch.full(labels.shape, 1 - self.replace_prob).to(input_ids.device)
 
         # do not mask [pad] tokens, or any other tokens in the tokens designated to be excluded ([cls], [sep])
         # also do not include these special tokens in the tokens chosen at random
-        no_mask = mask_with_tokens(input_ids, self.mask_ignore_token_ids)
-        mask = get_mask_subset_with_prob(~no_mask, self.mask_prob)
+        no_mask = mask_with_tokens(input_ids, self.mask_ignore_token_ids).to(input_ids.device)
+        replace_prob.masked_fill_(no_mask, value=0.0)
+        masked_indices = torch.bernoulli(replace_prob).bool().to(input_ids.device)
+        gen_labels[~masked_indices] = -100
+        
+        masked_input = input_ids.clone()
 
-        # get mask indices
-        mask_indices = torch.nonzero(mask, as_tuple=True)
+        # 80% of the time, we replace masked input tokens with tokenizer.mask_token ([MASK])
+        indices_replaced = torch.bernoulli(torch.full(labels.shape, 0.8)).to(input_ids.device).bool() & masked_indices
+        masked_input[indices_replaced] = self.mask_token_id
 
-        # mask input with mask tokens with probability of `replace_prob` (keep tokens the same with probability 1 - replace_prob)
-        masked_input = input_ids.clone().detach()
-
-        # set inverse of mask to padding tokens for labels
-        gen_labels = input_ids.masked_fill(~mask, self.pad_token_id)
-
-        # clone the mask, for potential modification if random tokens are involved
-        # not to be mistakened for the mask above, which is for all tokens, whether not replaced nor replaced with random tokens
-        masking_mask = mask.clone()
-
-        # if random token probability > 0 for mlm
-        # i think this is randomly corrupting the input with random_token_prob
-        # i.e. input sentence is "the cool chef baked a cake" -> "the cool fox baked a cake"
-        # affecting MLM task
-        if self.random_token_prob > 0:
-            assert (
-                self.num_tokens is not None
-            ), "Number of tokens (num_tokens) must be passed to Electra for randomizing tokens during masked language modeling"
-
-            random_token_prob = prob_mask_like(input_ids, self.random_token_prob)
-            random_tokens = torch.randint(
-                0, self.num_tokens, input_ids.shape, device=input_ids.device
-            )
-            random_no_mask = mask_with_tokens(random_tokens, self.mask_ignore_token_ids)
-            random_token_prob &= ~random_no_mask
-            masked_input = torch.where(random_token_prob, random_tokens, masked_input)
-
-            # remove random token prob mask from masking mask
-            masking_mask = masking_mask & ~random_token_prob
-
-        # [mask] input
-        masked_input = masked_input.masked_fill(
-            masking_mask * replace_prob, self.mask_token_id
-        )
+        # 10% of the time, we replace masked input tokens with random word
+        indices_random = torch.bernoulli(torch.full(labels.shape, 0.5)).to(input_ids.device).bool() & masked_indices & ~indices_replaced
+        random_words = torch.randint(self.config.vocab_size, gen_labels.shape, dtype=torch.long).to(input_ids.device)
+        masked_input[indices_random] = random_words[indices_random] 
 
         # get generator output and get mlm loss
         logits = self.generator(
-            masked_input,
-            attention_mask,
-            token_type_ids,
-            position_ids,
-            head_mask,
-            inputs_embeds,
-            output_attentions,
-            output_hidden_states,
-            return_dict,
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds,
+            labels=labels,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
         )
 
+        mlm_loss = logits.loss
         logits = logits.logits
-
-        mlm_loss = F.cross_entropy(
-            logits.view(-1, self.config.vocab_size),
-            gen_labels.view(-1),
-            ignore_index=self.pad_token_id,
-        )
-
+        
         # use mask from before to select logits that need sampling
         # select tokens that could be potentially changed from mlm objective
-        sample_logits = logits[mask_indices]
+        sample_logits = logits[masked_indices]
 
-        # sample
+        # # sample
         sampled = gumbel_sample(sample_logits, temperature=self.temperature)
 
-        # scatter the sampled values back to the input
+        # # scatter the sampled values back to the input
         disc_input = input_ids.clone()
-        disc_input[mask_indices] = sampled.detach()
+        disc_input[masked_indices] = sampled.detach()
 
         # generate discriminator labels, with replaced as True and original as False
         disc_labels = (input_ids != disc_input).float().detach()
@@ -294,10 +268,10 @@ class Electra(nn.Module):
         with torch.no_grad():
             gen_predictions = torch.argmax(logits, dim=-1)
             disc_predictions = torch.round((torch.sign(disc_logits) + 1.0) * 0.5)
-            gen_acc = (gen_labels[mask] == gen_predictions[mask]).float().mean()
+            gen_acc = (gen_labels[masked_indices] == gen_predictions[masked_indices]).float().mean()
             disc_acc = (
-                0.5 * (disc_labels[mask] == disc_predictions[mask]).float().mean()
-                + 0.5 * (disc_labels[~mask] == disc_predictions[~mask]).float().mean()
+                0.5 * (disc_labels[masked_indices] == disc_predictions[masked_indices]).float().mean()
+                + 0.5 * (disc_labels[~masked_indices] == disc_predictions[~masked_indices]).float().mean()
             )
 
         # return weighted sum of losses

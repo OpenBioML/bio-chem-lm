@@ -45,6 +45,8 @@ def create_electra(
             gen_model_config = ElectraConfig(**gen_config)
             generator = ElectraForMaskedLM(gen_model_config)
 
+            tie_weights(generator, discriminator)
+
             electra = Electra(
                 discriminator=discriminator,
                 generator=generator,
@@ -53,26 +55,9 @@ def create_electra(
                 config=gen_model_config,
             )
 
-            tie_weights(generator, discriminator)
-
-            generator.apply(
-                partial(
-                    generator._init_weights,
-                    readout_zero_init=readout_zero_init,
-                    query_zero_init=query_zero_init,
-                )
-            )
-
-            discriminator.apply(
-                partial(
-                    discriminator._init_weights,
-                    readout_zero_init=readout_zero_init,
-                    query_zero_init=query_zero_init,
-                )
-            )
 
             if mup is False:
-                set_base_shapes(electra, None, rescale_params=False)
+                set_base_shapes(electra, None)
             else:
                 base_disc_config = load_config(
                     BASE.format(model_type="discriminator", size=base_size)
@@ -91,23 +76,6 @@ def create_electra(
 
                 tie_weights(base_generator, base_discriminator)
 
-                base_generator.apply(
-                    partial(
-                        generator._init_weights,
-                        readout_zero_init=readout_zero_init,
-                        query_zero_init=query_zero_init,
-                    )
-                )
-
-                base_discriminator.apply(
-                    partial(
-                        discriminator._init_weights,
-                        readout_zero_init=readout_zero_init,
-                        query_zero_init=query_zero_init,
-                    )
-                )
-
-
                 base_electra = Electra(
                     discriminator=base_discriminator,
                     generator=base_generator,
@@ -116,8 +84,15 @@ def create_electra(
                     config=gen_model_config,
                 )
 
-
                 set_base_shapes(electra, base_electra)
+
+            electra.apply(
+                partial(
+                    electra._init_weights,
+                    readout_zero_init=readout_zero_init,
+                    query_zero_init=query_zero_init, 
+                )
+            )
 
             return electra
 
@@ -160,8 +135,8 @@ def plot_coords(config):
 
     dataloader = DataLoader(
         dataset,
-        collate_fn=DataCollatorForLanguageModeling(tokenizer, mlm=False, mlm_probability=0),
-    )
+        collate_fn=DataCollatorForLanguageModeling(tokenizer, mlm=False)
+    ) 
 
     mup = config["mup"]
     optimizer = "adam"
@@ -216,7 +191,7 @@ def plot_coords(config):
         suptitle=f"{prm} electra model {optimizer} lr={lr} nseeds={nseeds}",
         face_color="xkcd:light grey" if not mup else None,
         name_not_contains="out[",
-        name_contains="electra"
+        name_contains="generator",
     )
 
 
