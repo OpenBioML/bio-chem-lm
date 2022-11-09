@@ -11,10 +11,9 @@ def parse_args():
     parser.add_argument("--mask_prob", type=float, default=0.15)
 
     # model params
+    parser.add_argument("--base_config_size", type=str, default="tiny.yaml", help="Default base size for when creating shapes file")
     parser.add_argument("--generator_config", type=str, default="model/configs/generator/tiny.yaml")
-    parser.add_argument("--generator_base_config", type=str, default="model/configs/generator/tiny.yaml")
     parser.add_argument("--discriminator_config", type=str, default="model/configs/discriminator/tiny.yaml")
-    parser.add_argument("--discriminator_base_config", type=str, default="model/configs/discriminator/tiny.yaml")
     parser.add_argument("--position_embedding_type", type=str, default="absolute")
     parser.add_argument("--output_mult", type=int, default=1)
     parser.add_argument("--prenorm", action="store_true")
@@ -26,8 +25,7 @@ def parse_args():
     parser.add_argument("--save_dir", type=str, default="saved_models/")
 
     # mup params
-    parser.add_argument("--disc_base_shapes", type=str, help="directory to save bsh for mup")
-    parser.add_argument("--gen_base_shapes", type=str, help="directory to save file for mup")
+    parser.add_argument("--base_shapes_dir", type=str, default="shapes", help="directory to save bsh for mup")
     parser.add_argument("--mup", action="store_true")
     parser.add_argument("--readout_zero_init", action="store_true")
     parser.add_argument("--query_zero_init", action="store_true")
