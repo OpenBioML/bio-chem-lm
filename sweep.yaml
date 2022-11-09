@@ -1,4 +1,4 @@
-method: random
+method: bayes
 program: train.py
 project: "bio-chem-lm"
 metric:
@@ -10,6 +10,9 @@ parameters:
 
   discriminator_config:
     value: "model/configs/discriminator/tiny.yaml"
+
+  base_config_size:
+    value: "tiny.yaml"
 
   position_embedding_type:
     values: ["absolute", "relative_key", "relative_key_query", "rotary", "alibi"]
@@ -56,6 +59,9 @@ parameters:
     value: 10
 
   num_steps_per_epoch:
+    value: 1000
+
+  num_eval_steps:
     value: 1000
 
   num_warmup_steps:
