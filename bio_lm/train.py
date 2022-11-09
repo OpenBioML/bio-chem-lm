@@ -10,11 +10,8 @@ from mup import MuAdam, set_base_shapes
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from transformers import (
-    AutoTokenizer,
-    DataCollatorForLanguageModeling,
-    get_linear_schedule_with_warmup,
-)
+from transformers import (AutoTokenizer, DataCollatorForLanguageModeling,
+                          get_linear_schedule_with_warmup)
 
 from bio_lm.metrics import MetricDict, format_metrics
 from bio_lm.model.config import ElectraConfig
@@ -47,7 +44,9 @@ def load_data(config, tokenizer, split="train"):
     dataloader = DataLoader(
         dataset,
         # we set mlm to false since we do MLM in the `Electra` model
-        collate_fn=DataCollatorForLanguageModeling(tokenizer, mlm=False, mlm_probability=0),
+        collate_fn=DataCollatorForLanguageModeling(
+            tokenizer, mlm=False, mlm_probability=0
+        ),
         batch_size=config[f"{split}_batch_size"],
     )
 
@@ -65,18 +64,13 @@ def train(accelerator, config):
 
     if config["mup"]:
         # generate the base shapes file
-        disc_filename = make_shapes(
-            config["discriminator_base_config"],
-            delta_model_config="model/configs/discriminator/small.yaml",
-            save_dir=config["disc_base_shapes"],
-            generator=False,
-        )
-
-        gen_filename = make_shapes(
-            config["generator_base_config"],
-            delta_model_config="model/configs/generator/small.yaml",
-            save_dir=config["gen_base_shapes"],
-            generator=True,
+        electra_shapes_filename = make_shapes(
+            base_size=config["base_config_size"],
+            delta_size="small.yaml",
+            vocab_size=tokenizer.vocab_size,
+            pad_id=tokenizer.pad_token_id,
+            mask_id=tokenizer.mask_token_id,
+            save_dir=config["base_shapes_dir"],
         )
 
         disc_config = load_config(config["discriminator_config"])
@@ -85,15 +79,23 @@ def train(accelerator, config):
         discriminator_config = ElectraConfig(**disc_config)
         discriminator = ElectraForPreTraining(discriminator_config)
 
-        set_base_shapes(discriminator, disc_filename)
-
         gen_config = load_config(config["generator_config"])
         gen_config["mup"] = True
         gen_config["vocab_size"] = tokenizer.vocab_size
         generator_config = ElectraConfig(**gen_config)
         generator = ElectraForMaskedLM(generator_config)
 
-        set_base_shapes(generator, gen_filename)
+        tie_weights(generator, discriminator)
+
+        model = Electra(
+            discriminator=discriminator,
+            generator=generator,
+            pad_token_id=tokenizer.pad_token_id,
+            mask_token_id=tokenizer.mask_token_id,
+            config=discriminator_config,
+        )
+
+        set_base_shapes(model, electra_shapes_filename)
 
     else:
         disc_config = load_config(config["discriminator_config"])
@@ -104,37 +106,25 @@ def train(accelerator, config):
         generator_config = ElectraConfig(**gen_config)
         generator = ElectraForMaskedLM(generator_config)
 
-    generator.apply(
-        partial(
-            generator._init_weights,
-            readout_zero_init=generator_config.readout_zero_init,
-            query_zero_init=config["query_zero_init"],
-        )
-    )
+        tie_weights(generator, discriminator)
 
-    discriminator.apply(
+        model = Electra(
+            discriminator=discriminator,
+            generator=generator,
+            pad_token_id=tokenizer.pad_token_id,
+            mask_token_id=tokenizer.mask_token_id,
+            config=discriminator_config,
+        )
+
+    model.apply(
         partial(
-            discriminator._init_weights,
-            readout_zero_init=discriminator_config.readout_zero_init,
+            model._init_weights,
+            readout_zero_init=config["readout_zero_init"],
             query_zero_init=config["query_zero_init"],
         )
     )
 
     device = accelerator.device
-
-    generator.to(device)
-    discriminator.to(device)
-
-    tie_weights(generator, discriminator)
-
-    model = Electra(
-        discriminator=discriminator,
-        generator=generator,
-        pad_token_id=tokenizer.pad_token_id,
-        mask_token_id=tokenizer.mask_token_id,
-        config=discriminator_config,
-    )
-
     model.to(device)
 
     if config["mup"]:
@@ -221,12 +211,13 @@ def train(accelerator, config):
             if config["scheduler"]:
                 scheduler.step()
 
+            loss = {key: value.detach() for key, value in loss.items()}
             loss = accelerator.gather_for_metrics(loss)
 
-            train_metrics.update({key: value.detach() for key, value in loss.items()})
+            train_metrics.update(loss)
 
         with torch.no_grad():
-            # we only evalute with 1000 steps since there are 10M data points!!
+            # we only evalute with N steps since there are 10M data points!!
             for i, batch in enumerate(
                 tqdm(
                     val_dataloader,
@@ -244,9 +235,10 @@ def train(accelerator, config):
                 model.eval()
                 loss = model(**batch)
 
+                loss = {key: value.detach() for key, value in loss.items()}
                 loss = accelerator.gather_for_metrics(loss)
 
-                val_metrics.update({key: value.detach() for key, value in loss.items()})
+                val_metrics.update(loss)
 
         log_train = {
             f"train_{key}": value for key, value in train_metrics.compute().items()
