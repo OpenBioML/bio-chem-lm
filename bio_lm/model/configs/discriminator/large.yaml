@@ -19,4 +19,9 @@ pad_token_id: 0
 position_embedding_type: "absolute"
 classifier_dropout: None
 prenorm: False
-norm_layer_type: "layer_norm"
+embedding_norm_layer_type: "layer_norm"
+embedding_num_groups: None 
+attn_norm_layer_type: "layer_norm"
+attn_num_groups: None
+readout_zero_init: False
+query_zero_init: False
