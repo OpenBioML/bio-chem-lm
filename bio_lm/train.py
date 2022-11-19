@@ -67,6 +67,7 @@ def train(accelerator, config):
         electra_shapes_filename = make_shapes(
             base_size=config["base_config_size"],
             delta_size="small.yaml",
+            config=config,
             vocab_size=tokenizer.vocab_size,
             pad_id=tokenizer.pad_token_id,
             mask_id=tokenizer.mask_token_id,
@@ -74,12 +75,22 @@ def train(accelerator, config):
         )
 
         disc_config = load_config(config["discriminator_config"])
+        # update keys in config with values from cli
+        for key in disc_config:
+            if key in config:
+                disc_config[key] = config[key]
+
         disc_config["mup"] = True
         disc_config["vocab_size"] = tokenizer.vocab_size
         discriminator_config = ElectraConfig(**disc_config)
         discriminator = ElectraForPreTraining(discriminator_config)
 
         gen_config = load_config(config["generator_config"])
+        # update keys in config with values from cli
+        for key in gen_config:
+            if key in config:
+                gen_config[key] = config[key]
+
         gen_config["mup"] = True
         gen_config["vocab_size"] = tokenizer.vocab_size
         generator_config = ElectraConfig(**gen_config)
@@ -99,7 +110,7 @@ def train(accelerator, config):
 
     else:
         disc_config = load_config(config["discriminator_config"])
-        discriminator_config = ElectraConfig(disc_config)
+        discriminator_config = ElectraConfig(**disc_config)
         discriminator = ElectraForPreTraining(discriminator_config)
 
         gen_config = load_config(config["generator_config"])
@@ -291,7 +302,7 @@ if __name__ == "__main__":
         if not os.path.exists(config["save_dir"]):
             # only save once per server (not sure if needed?)
             if accelerator.is_local_main_process:
-                os.makedirs(config["save_dir"])
+                os.makedirs(config["save_dir"], exist_ok=True)
 
     accelerator.print("| configs: ")
     for k, v in config.items():

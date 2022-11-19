@@ -18,16 +18,26 @@ def load_config(file):
     return config
 
 
-def make_shapes(base_size, delta_size, vocab_size, pad_id, mask_id, save_dir):
+def make_shapes(base_size, delta_size, config, vocab_size, pad_id, mask_id, save_dir):
     disc_config = load_config(BASE.format(model_type="discriminator", size=delta_size))
     disc_config["mup"] = True
     disc_config["vocab_size"] = vocab_size
+
+    for key in disc_config:
+        if key in config:
+            disc_config[key] = config[key]
+
     disc_model_config = ElectraConfig(**disc_config)
     discriminator = ElectraForPreTraining(disc_model_config)
 
     gen_config = load_config(BASE.format(model_type="generator", size=delta_size))
     gen_config["mup"] = True
     gen_config["vocab_size"] = vocab_size
+
+    for key in gen_config:
+        if key in config:
+            gen_config[key] = config[key]
+
     gen_model_config = ElectraConfig(**gen_config)
     generator = ElectraForMaskedLM(gen_model_config)
 
@@ -46,12 +56,21 @@ def make_shapes(base_size, delta_size, vocab_size, pad_id, mask_id, save_dir):
     )
     base_disc_config["mup"] = True
     base_disc_config["vocab_size"] = vocab_size
+
+    for key in base_disc_config:
+        if key in config:
+            base_disc_config[key] = config[key]
+
     base_disc_model_config = ElectraConfig(**base_disc_config)
     base_discriminator = ElectraForPreTraining(base_disc_model_config)
 
     base_gen_config = load_config(BASE.format(model_type="generator", size=base_size))
     base_gen_config["mup"] = True
     base_gen_config["vocab_size"] = vocab_size
+    for key in base_gen_config:
+        if key in config:
+            base_gen_config[key] = config[key]
+
     base_gen_model_config = ElectraConfig(**base_gen_config)
     base_generator = ElectraForMaskedLM(base_gen_model_config)
 
