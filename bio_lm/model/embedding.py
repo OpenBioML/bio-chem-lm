@@ -22,7 +22,13 @@ class ElectraEmbeddings(nn.Module):
         # self.LayerNorm is not snake-cased to stick with TensorFlow model variable name and be able to load
         # any TensorFlow checkpoint file
 
-        self.norm = config.embedding_norm_layer(config.embedding_size)
+        if config.embedding_norm_layer_type == "layer_norm":
+            self.norm = config.embedding_norm_layer(normalized_shape=config.embedding_size) 
+        elif config.embedding_norm_layer_type == "group_norm":
+            self.norm = config.embedding_norm_layer(num_channels=config.embedding_size)
+        else:
+            raise ValueError(f"Unknown attn_norm_layer_type {config.attn_norm_layer_type}")
+
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
         # position_ids (1, len position emb) is contiguous in memory and exported when serialized
@@ -88,6 +94,13 @@ class ElectraEmbeddings(nn.Module):
             position_embeddings = self.position_embeddings(position_ids)
             embeddings += position_embeddings
 
-        embeddings = self.norm(embeddings)
+        if isinstance(self.norm, nn.GroupNorm):
+            # group norm only works over channel dim
+            reshaped = embeddings.permute(0, 2, 1)
+            hidden_states = self.norm(reshaped)
+            hidden_states = hidden_states.permute(0, 2, 1)
+        else:
+            embeddings = self.norm(embeddings)
+
         embeddings = self.dropout(embeddings)
         return embeddings
