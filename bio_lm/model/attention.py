@@ -16,14 +16,26 @@ class ElectraSelfOutput(nn.Module):
         if config.prenorm:
             self.norm = nn.Identity()
         else:
-            self.norm = config.attn_norm_layer(config.hidden_size)
+            if config.attn_norm_layer_type == "layer_norm":
+                self.norm = config.attn_norm_layer(normalized_shape=config.hidden_size) 
+            elif config.attn_norm_layer_type == "group_norm":
+                self.norm = config.attn_norm_layer(num_channels=config.hidden_size)
+            else:
+                raise ValueError(f"Unknown attn_norm_layer_type {config.attn_norm_layer_type}")
 
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
     def forward(self, hidden_states, input_tensor):
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
-        hidden_states = self.norm(hidden_states + input_tensor)
+        if isinstance(self.norm, nn.GroupNorm):
+            reshaped = (hidden_states + input_tensor)
+            # group norm only works over channel dim
+            reshaped = reshaped.permute(0, 2, 1)
+            hidden_states = self.norm(reshaped)
+            hidden_states = hidden_states.permute(0, 2, 1)
+        else:
+            hidden_states = self.norm(hidden_states + input_tensor)
         return hidden_states
 
 
@@ -211,7 +223,12 @@ class ElectraAttention(nn.Module):
         self.self = ElectraSelfAttention(config)
         self.output = ElectraSelfOutput(config)
         if config.prenorm:
-            self.prenorm = config.attn_norm_layer(config.hidden_size)
+            if config.attn_norm_layer_type == "layer_norm":
+                self.prenorm = config.attn_norm_layer(normalized_shape=config.hidden_size) 
+            elif config.attn_norm_layer_type == "group_norm":
+                self.prenorm = config.attn_norm_layer(num_channels=config.hidden_size)
+            else:
+                raise ValueError(f"Unknown attn_norm_layer_type {config.attn_norm_layer_type}")
         else:
             self.prenorm = nn.Identity()
 
@@ -251,7 +268,14 @@ class ElectraAttention(nn.Module):
         output_attentions=False,
     ):
         # if we are doing prenorm instead of postnorm
-        hidden_states = self.prenorm(hidden_states)
+        if isinstance(self.prenorm, nn.GroupNorm):
+            # group norm only works over channel dim
+            reshaped = hidden_states.permute(0, 2, 1)
+            hidden_states = self.prenorm(reshaped)
+            hidden_states = hidden_states.permute(0, 2, 1)
+        else:
+            hidden_states = self.prenorm(hidden_states)
+
         self_outputs = self.self(
             hidden_states,
             attention_mask,
