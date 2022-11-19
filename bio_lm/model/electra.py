@@ -134,8 +134,6 @@ class Electra(ElectraPreTrainedModel):
         discr_dim=-1,
         discr_layer=-1,
         mask_prob=0.15,
-        replace_prob=0.85,
-        random_token_prob=0.0,
         mask_token_id=2,
         pad_token_id=0,
         mask_ignore_token_ids=[],
@@ -156,10 +154,8 @@ class Electra(ElectraPreTrainedModel):
 
         # mlm related probabilities
         self.mask_prob = mask_prob
-        self.replace_prob = replace_prob
 
         self.num_tokens = num_tokens
-        self.random_token_prob = random_token_prob
 
         # token ids
         self.pad_token_id = pad_token_id
@@ -190,7 +186,7 @@ class Electra(ElectraPreTrainedModel):
     ):
         gen_labels = input_ids.clone()
         # We sample a few tokens in each sequence for MLM training (with probability `self.mlm_probability`)
-        replace_prob = torch.full(labels.shape, 1 - self.replace_prob).to(input_ids.device)
+        replace_prob = torch.full(labels.shape, self.mask_prob).to(input_ids.device)
 
         # do not mask [pad] tokens, or any other tokens in the tokens designated to be excluded ([cls], [sep])
         # also do not include these special tokens in the tokens chosen at random
@@ -212,13 +208,13 @@ class Electra(ElectraPreTrainedModel):
 
         # get generator output and get mlm loss
         logits = self.generator(
-            input_ids=input_ids,
+            input_ids=masked_input,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
             position_ids=position_ids,
             head_mask=head_mask,
             inputs_embeds=inputs_embeds,
-            labels=labels,
+            labels=gen_labels,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
@@ -248,15 +244,16 @@ class Electra(ElectraPreTrainedModel):
 
         # get discriminator output and binary cross entropy loss
         disc_logits = self.discriminator(
-            disc_input,
-            attention_mask,
-            token_type_ids,
-            position_ids,
-            head_mask,
-            inputs_embeds,
-            output_attentions,
-            output_hidden_states,
-            return_dict,
+            input_ids=disc_input,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds,
+            labels=None,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
         )
         disc_logits = disc_logits.logits.reshape_as(disc_labels)
 
