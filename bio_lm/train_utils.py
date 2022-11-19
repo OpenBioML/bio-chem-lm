@@ -1,7 +1,7 @@
-import glob
 import os
 
 import yaml
+from datetime import datetime
 from mup import make_base_shapes
 
 from bio_lm.model.config import ElectraConfig
@@ -54,22 +54,24 @@ def make_shapes(base_size, delta_size, config, vocab_size, pad_id, mask_id, save
     base_disc_config = load_config(
         BASE.format(model_type="discriminator", size=base_size)
     )
-    base_disc_config["mup"] = True
-    base_disc_config["vocab_size"] = vocab_size
 
     for key in base_disc_config:
         if key in config:
             base_disc_config[key] = config[key]
 
+    base_disc_config["mup"] = True
+    base_disc_config["vocab_size"] = vocab_size
+
     base_disc_model_config = ElectraConfig(**base_disc_config)
     base_discriminator = ElectraForPreTraining(base_disc_model_config)
 
     base_gen_config = load_config(BASE.format(model_type="generator", size=base_size))
-    base_gen_config["mup"] = True
-    base_gen_config["vocab_size"] = vocab_size
     for key in base_gen_config:
         if key in config:
             base_gen_config[key] = config[key]
+
+    base_gen_config["mup"] = True
+    base_gen_config["vocab_size"] = vocab_size
 
     base_gen_model_config = ElectraConfig(**base_gen_config)
     base_generator = ElectraForMaskedLM(base_gen_model_config)
@@ -87,9 +89,8 @@ def make_shapes(base_size, delta_size, config, vocab_size, pad_id, mask_id, save
     if not os.path.exists(save_dir):
         os.makedirs(save_dir, exist_ok=True)
 
-    names = glob.glob(f"{save_dir}/*.bsh")
-    num_shapes = len(names)
-    filename = f"{save_dir}/shapes_{num_shapes}.bsh"
+    # make filename unique
+    filename = f"{save_dir}/shapes_{datetime.now().strftime('%m-%d-%Y_%H:%M:%S')}.bsh"
 
     make_base_shapes(base_electra, delta_electra, savefile=filename)
 

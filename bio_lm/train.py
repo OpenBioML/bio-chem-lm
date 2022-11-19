@@ -74,6 +74,8 @@ def train(accelerator, config):
             save_dir=config["base_shapes_dir"],
         )
 
+        accelerator.print(f"Saved base shapes to {electra_shapes_filename}")
+
         disc_config = load_config(config["discriminator_config"])
         # update keys in config with values from cli
         for key in disc_config:
