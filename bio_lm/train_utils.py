@@ -1,5 +1,6 @@
 import os
 
+import json
 import yaml
 from datetime import datetime
 from mup import make_base_shapes
@@ -90,7 +91,8 @@ def make_shapes(base_size, delta_size, config, vocab_size, pad_id, mask_id, save
         os.makedirs(save_dir, exist_ok=True)
 
     # make filename unique
-    filename = f"{save_dir}/shapes_{datetime.now().strftime('%m-%d-%Y_%H:%M:%S')}.bsh"
+    config_hash = hash(json.dumps(config, sort_keys=True))
+    filename = f"{save_dir}/shapes_{datetime.now().strftime('%m-%d-%Y_%H:%M:%S')}_{config_hash}.bsh"
 
     make_base_shapes(base_electra, delta_electra, savefile=filename)
 
