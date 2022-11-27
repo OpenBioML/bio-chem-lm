@@ -1,16 +1,17 @@
-### High level goals
+# High level goals
 
 This repository is dedicated specifically to the development of (Large) Language Models, and/or Language/Structure models in the bio-chem space. 
 
+Further details can be found [here](https://docs.google.com/document/d/1HFfZY3RjbRN9SfHJIcxvsA8oTk_XFY7dXmiICnbcUVU/edit)
 
+## Bio-LM PubChem Selfies
 
-### Current plans
-We'd like to start simple - developing some LLMs using SELFIES over (or with) SMILES, develop some baselines. Intended datasets are ZINC + PubChem.
+We are training an Electra-style model on the PubChem dataset with SELFIES representations. The SELFIES  is a chemical language that is based on the SMILES language, but is more robust. More info about SELFIES can be found [here](https://github.com/aspuru-guzik-group/selfies).
 
-Required Steps:
+We have released the dataset to [HuggingFace Datasets](https://huggingface.co/datasets/zpn/pubchem_selfies), which contains ~110M compounds in total.
 
-- [ ] Scripts for downloading ZINC & PubChem
-- [ ] Scripts for converting ZINC/PubChem from SMILES to SELFIES, format TBD. (CSV of original columns (including SMILES) + selfies is probably fine for the moment)
-- [ ] Decide on training harness for LLM, leaning towards something HF related for finetuning.
-- [ ] Evaluation harness
-- [ ] ... TBD.
+We will perform a hyperparameter search using [Maximal Update Parameterization](https://github.com/microsoft/mup) to find a good set of hyperparameters to transfer to a larger model. To launch a sweep on the cluster, run
+
+```bash
+sbatch --array=1-N mup_train.sh
+```
