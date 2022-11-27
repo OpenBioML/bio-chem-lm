@@ -1,5 +1,7 @@
 # Generation results
 **jsonl**
+**.pt**
+hostfile
 .DS_Store
 *.json
 **wandb**
