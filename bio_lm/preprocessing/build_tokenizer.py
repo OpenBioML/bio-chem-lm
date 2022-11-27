@@ -49,10 +49,10 @@ def train_tokenizer(
 
 if __name__ == "__main__":
     save_path = "tokenizer.json"
-    train_tokenizer("tokenizer.json", "zpn/pubchem_selfies")
+    train_tokenizer(save_path, "zpn/pubchem_selfies")
 
     tokenizer = PreTrainedTokenizerFast(
-        tokenizer_file="tokenizer.json",
+        tokenizer_file=save_path,
         unk_token="[UNK]",
         pad_token="[PAD]",
         cls_token="[CLS]",
@@ -61,4 +61,4 @@ if __name__ == "__main__":
         model_max_length=MAX_LENGTH,
     )
 
-    tokenizer.push_to_hub("zpn/pubchem_selfies_tokenizer_wordlevel")
+    tokenizer.push_to_hub("zpn/pubchem_selfies_tokenizer_wordlevel_dissociation")
