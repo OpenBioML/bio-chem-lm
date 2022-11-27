@@ -188,19 +188,21 @@ def train(accelerator, config):
             model, optimizer, train_dataloader, val_dataloader
         )
 
-    train_dataloader = iter(train_dataloader)
-
     for epoch in range(config["num_epochs"]):
-        for step in tqdm(
-            range(config["num_steps_per_epoch"]),
+        for step, batch in enumerate(tqdm(
+            train_dataloader, 
+            total=config["num_steps_per_epoch"],
             desc="Training",
             disable=not accelerator.is_local_main_process,
-        ):
+        )):
+            continue
             if step == 5 and config["debug"]:
                 break
 
+            if step == config["num_steps_per_epoch"]:
+                break
+
             optimizer.zero_grad()
-            batch = next(train_dataloader)
             model.train()
 
             loss = model(**batch)
@@ -229,56 +231,56 @@ def train(accelerator, config):
 
             train_metrics.update(loss)
 
-        with torch.no_grad():
-            # we only evalute with N steps since there are 10M data points!!
-            for i, batch in enumerate(
-                tqdm(
-                    val_dataloader,
-                    desc="Validation",
-                    total=config["num_eval_steps"],
-                    disable=not accelerator.is_local_main_process,
-                )
-            ):
-                if i == 5 and config["debug"]:
-                    break
+        # with torch.no_grad():
+        #     # we only evalute with N steps since there are 10M data points!!
+        #     for i, batch in enumerate(
+        #         tqdm(
+        #             val_dataloader,
+        #             desc="Validation",
+        #             total=config["num_eval_steps"],
+        #             disable=not accelerator.is_local_main_process,
+        #         )
+        #     ):
+        #         if i == 5 and config["debug"]:
+        #             break
 
-                if i == config["num_eval_steps"]:
-                    break
+        #         if i == config["num_eval_steps"]:
+        #             break
 
-                model.eval()
-                loss = model(**batch)
+        #         model.eval()
+        #         loss = model(**batch)
 
-                loss = {key: value.detach() for key, value in loss.items()}
-                loss = accelerator.gather_for_metrics(loss)
+        #         loss = {key: value.detach() for key, value in loss.items()}
+        #         loss = accelerator.gather_for_metrics(loss)
 
-                val_metrics.update(loss)
+        #         val_metrics.update(loss)
 
-        log_train = {
-            f"train_{key}": value for key, value in train_metrics.compute().items()
-        }
-        log_val = {f"val_{key}": value for key, value in val_metrics.compute().items()}
+        # log_train = {
+        #     f"train_{key}": value for key, value in train_metrics.compute().items()
+        # }
+        # log_val = {f"val_{key}": value for key, value in val_metrics.compute().items()}
 
-        if config["wandb"]:
-            accelerator.log({**log_train, **log_val})
+        # if config["wandb"]:
+        #     accelerator.log({**log_train, **log_val})
 
-        accelerator.print(format_metrics(log_train, "train", f" epoch {epoch} "))
-        accelerator.print(format_metrics(log_val, "val", f" epoch {epoch} "))
+        # accelerator.print(format_metrics(log_train, "train", f" epoch {epoch} "))
+        # accelerator.print(format_metrics(log_val, "val", f" epoch {epoch} "))
 
-        train_metrics.reset_metrics()
-        val_metrics.reset_metrics()
+        # train_metrics.reset_metrics()
+        # val_metrics.reset_metrics()
 
-        if config["save_model"]:
-            accelerator.wait_for_everyone()
-            unwrapped_model = accelerator.unwrap_model(model)
-            accelerator.save(
-                unwrapped_model.state_dict(), f"{config['save_dir']}/model_{epoch}.pt"
-            )
+        # if config["save_model"]:
+        #     accelerator.wait_for_everyone()
+        #     unwrapped_model = accelerator.unwrap_model(model)
+        #     accelerator.save(
+        #         unwrapped_model.state_dict(), f"{config['save_dir']}/model_{epoch}.pt"
+        #     )
 
     accelerator.end_training()
 
 
 if __name__ == "__main__":
-    accelerator = Accelerator(log_with="wandb")
+    accelerator = Accelerator()#log_with="wandb")
 
     args = parse_args()
 

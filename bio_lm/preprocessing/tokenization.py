@@ -6,7 +6,6 @@ def tokenize_selfies(examples):
 
     selfies = examples["CAN_SELFIES"]
     for example in selfies:
-        print(example)
         all_tokens = list(sf.split_selfies(example))
 
         # to encode with tokenizers, input needs to be a string
@@ -30,5 +29,5 @@ if __name__ == "__main__":
     train_ds = dataset["train"]
 
     item = train_ds[0]
-    print(item)
-    print(tokenize_selfies({"CAN_SELFIES": [item["CAN_SELFIES"]]}))
+    #print(item)
+    #print(tokenize_selfies({"CAN_SELFIES": [item["CAN_SELFIES"]]}))
