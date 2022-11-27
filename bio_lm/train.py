@@ -279,7 +279,7 @@ def train(accelerator, config):
 
 
 if __name__ == "__main__":
-    accelerator = Accelerator()#log_with="wandb")
+    accelerator = Accelerator(log_with="wandb")
 
     args = parse_args()
 
