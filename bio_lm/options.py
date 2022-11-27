@@ -7,7 +7,7 @@ def parse_args():
 
     # data params
     parser.add_argument("--dataset_name", type=str, default="zpn/pubchem_selfies")
-    parser.add_argument("--tokenizer_name", type=str, default="zpn/pubchem_selfies_tokenizer_wordlevel")
+    parser.add_argument("--tokenizer_name", type=str, default="zpn/pubchem_selfies_tokenizer_wordlevel_dissociation")
     parser.add_argument("--mask_prob", type=float, default=0.15)
 
     # model params
