@@ -42,4 +42,4 @@ source /fsx/home-zanussbaum/bio-chem-lm/env/bin/activate
 
 cd /fsx/home-zanussbaum/bio-chem-lm/bio_lm
 
-srun --comment openbioml --gres=gpu:1 --ntasks=1 wandb agent zanussbaum/bio-chem-lm/nhpl9ed7
+srun --comment openbioml --gres=gpu:1 --ntasks=1 wandb agent zanussbaum/bio-chem-lm/9a7etnxe

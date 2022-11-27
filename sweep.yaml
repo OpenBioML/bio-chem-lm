@@ -1,4 +1,4 @@
-method: bayes
+method: random
 program: train.py
 project: "bio-chem-lm"
 metric:
@@ -27,7 +27,7 @@ parameters:
     values: ["layer_norm", "group_norm"]
 
   attn_num_groups:
-    values: [1, 2, 4, 8, 16]
+    values: [1, 2, 4, 8]
 
   embedding_norm_layer_type:
     values: ["layer_norm", "group_norm"]
