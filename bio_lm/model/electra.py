@@ -17,9 +17,11 @@ Results = namedtuple(
         "mlm_loss",
         "disc_loss",
         "gen_acc",
+        "disc_input",
         "disc_acc",
         "disc_labels",
         "disc_predictions",
+        "masked_input",
     ],
 )
 
@@ -197,14 +199,7 @@ class Electra(ElectraPreTrainedModel):
         
         masked_input = input_ids.clone()
 
-        # 80% of the time, we replace masked input tokens with tokenizer.mask_token ([MASK])
-        indices_replaced = torch.bernoulli(torch.full(labels.shape, 0.8)).to(input_ids.device).bool() & masked_indices
-        masked_input[indices_replaced] = self.mask_token_id
-
-        # 10% of the time, we replace masked input tokens with random word
-        indices_random = torch.bernoulli(torch.full(labels.shape, 0.5)).to(input_ids.device).bool() & masked_indices & ~indices_replaced
-        random_words = torch.randint(self.config.vocab_size, gen_labels.shape, dtype=torch.long).to(input_ids.device)
-        masked_input[indices_random] = random_words[indices_random] 
+        masked_input[masked_indices] = self.mask_token_id
 
         # get generator output and get mlm loss
         logits = self.generator(
@@ -273,11 +268,13 @@ class Electra(ElectraPreTrainedModel):
 
         # return weighted sum of losses
         return Results(
-            self.gen_weight * mlm_loss + self.disc_weight * disc_loss,
-            mlm_loss,
-            disc_loss,
-            gen_acc,
-            disc_acc,
-            disc_labels,
-            disc_predictions,
+            loss=self.gen_weight * mlm_loss + self.disc_weight * disc_loss,
+            mlm_loss=mlm_loss,
+            disc_loss=disc_loss,
+            gen_acc=gen_acc,
+            disc_input=disc_input,
+            disc_acc=disc_acc,
+            disc_labels=disc_labels,
+            disc_predictions=disc_predictions,
+            masked_input=masked_input,
         )._asdict()
