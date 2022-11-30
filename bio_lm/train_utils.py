@@ -1,4 +1,6 @@
 import os
+import numpy as np
+import torch
 
 import json
 import yaml
@@ -11,6 +13,20 @@ from bio_lm.model.electra import Electra
 from bio_lm.model.generator import ElectraForMaskedLM
 
 BASE = "model/configs/{model_type}/{size}"
+
+
+ENDC = "\033[0m"
+COLORS = ["\033[" + str(n) + "m" for n in list(range(91, 97)) + [90]]
+RED = COLORS[0]
+BLUE = COLORS[3]
+CYAN = COLORS[5]
+GREEN = COLORS[1]
+
+name2color = {
+    "disc_input": BLUE,
+    "right": GREEN,
+    "wrong": RED,
+}
 
 
 def load_config(file):
@@ -109,3 +125,51 @@ def tie_weights(generator, discriminator):
     generator.electra.embeddings.token_type_embeddings = (
         discriminator.electra.embeddings.token_type_embeddings
     )
+
+    
+def print_token_diff(tokens, tokenizer, labels, idx, name=None, prepend=""):
+    color = name2color.get(name, None)
+
+    indices = torch.nonzero(tokens != labels).to("cpu").tolist()
+
+    decoded_tokens = tokenizer.batch_decode(tokens)
+
+    first_pad = -1
+    decoded = decoded_tokens[idx].split()
+
+    for j in range(len(decoded)):
+        if decoded[j] == "[PAD]":
+            first_pad = j
+            break
+
+        if color:
+            if [idx, j] in indices:
+                decoded[j] = color + decoded[j] + ENDC
+
+    print(prepend + ": " + " ".join(decoded[:first_pad]))
+
+
+def print_pred_replaced(tokens, tokenizer, pred_replaced, labels, idx):
+    right = name2color["right"]
+    wrong = name2color["wrong"]
+
+    decoded_tokens = tokenizer.batch_decode(tokens)
+
+    first_pad = -1
+    decoded = decoded_tokens[idx].split()
+
+    for j in range(len(decoded)):
+        if decoded[j] == "[PAD]":
+            first_pad = j
+            break
+
+        if pred_replaced[idx, j]:
+            if labels[idx, j]:
+                decoded[j] = right + decoded[j] + ENDC
+            else:
+                decoded[j] = wrong + decoded[j] + ENDC
+
+        elif labels[idx, j]:
+            decoded[j] = wrong + decoded[j] + ENDC
+
+    print("DISCRIMINATOR: " + ": " + " ".join(decoded[:first_pad]))

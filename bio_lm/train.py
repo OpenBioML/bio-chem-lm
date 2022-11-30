@@ -1,6 +1,7 @@
 import getpass
 import os
 from functools import partial
+import numpy as np
 
 import torch
 from accelerate import Accelerator, DistributedType
@@ -20,7 +21,16 @@ from bio_lm.model.electra import Electra
 from bio_lm.model.generator import ElectraForMaskedLM
 from bio_lm.options import parse_args
 from bio_lm.preprocessing.tokenization import preprocess_fn, tokenize_selfies
-from bio_lm.train_utils import load_config, make_shapes, tie_weights
+from bio_lm.train_utils import load_config, make_shapes, tie_weights, print_token_diff, print_pred_replaced
+
+
+METRIC_NAMES = [
+    "loss",
+    "mlm_loss",
+    "disc_loss",
+    "gen_acc",
+    "disc_acc",
+]
 
 
 def load_data(config, tokenizer, split="train"):
@@ -153,23 +163,11 @@ def train(accelerator, config):
         )
 
     train_metrics = MetricDict(
-        [
-            "loss",
-            "mlm_loss",
-            "disc_loss",
-            "gen_acc",
-            "disc_acc",
-        ],
+        METRIC_NAMES,
         device=device,
     )
     val_metrics = MetricDict(
-        [
-            "loss",
-            "mlm_loss",
-            "disc_loss",
-            "gen_acc",
-            "disc_acc",
-        ],
+        METRIC_NAMES,
         device=device,
     )
 
@@ -189,12 +187,14 @@ def train(accelerator, config):
         )
 
     for epoch in range(config["num_epochs"]):
-        for step, batch in enumerate(tqdm(
-            train_dataloader, 
-            total=config["num_steps_per_epoch"],
-            desc="Training",
-            disable=not accelerator.is_local_main_process,
-        )):
+        for step, batch in enumerate(
+            tqdm(
+                train_dataloader,
+                total=config["num_steps_per_epoch"],
+                desc="Training",
+                disable=not accelerator.is_local_main_process,
+            )
+        ):
             if step == 5 and config["debug"]:
                 break
 
@@ -225,10 +225,15 @@ def train(accelerator, config):
             if config["scheduler"]:
                 scheduler.step()
 
-            loss = {key: value.detach() for key, value in loss.items()}
-            loss = accelerator.gather_for_metrics(loss)
+            # filter here
+            loss_values = {
+                key: value.detach()
+                for key, value in loss.items()
+                if key in METRIC_NAMES
+            }
+            loss_values = accelerator.gather_for_metrics(loss_values)
 
-            train_metrics.update(loss)
+            train_metrics.update(loss_values)
 
         with torch.no_grad():
             # we only evalute with N steps since there are 10M data points!!
@@ -249,10 +254,25 @@ def train(accelerator, config):
                 model.eval()
                 loss = model(**batch)
 
-                loss = {key: value.detach() for key, value in loss.items()}
-                loss = accelerator.gather_for_metrics(loss)
+                # filter here
+                loss_values = {key: value.detach() for key, value in loss.items() if key in METRIC_NAMES}
+                loss_values = accelerator.gather_for_metrics(loss)
 
-                val_metrics.update(loss)
+                # add logging to see what predictions are, are we prediction only things like C?
+
+                val_metrics.update(loss_values)
+
+                if i < 5 and config["log_predictions"]:
+                   inputs = batch["input_ids"]
+                   masked_input = loss["masked_input"]
+                   disc_input = loss["disc_input"]
+                   disc_preds = loss["disc_predictions"]
+                   random_idx = np.random.randint(inputs.shape[0])
+                   print_token_diff(inputs, tokenizer, inputs, random_idx, prepend="INPUTS")
+                   print_token_diff(masked_input, tokenizer, inputs, random_idx, prepend="MASKED_INPUTS")
+                   print_token_diff(disc_input, tokenizer, inputs, random_idx, "disc_input", prepend="GENERATOR")
+                   print_pred_replaced(disc_input, tokenizer, disc_preds.type(torch.bool), (disc_input != inputs), random_idx)
+
 
         log_train = {
             f"train_{key}": value for key, value in train_metrics.compute().items()

@@ -48,6 +48,7 @@ def parse_args():
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--resume_from_checkpoint", type=str, default=None)
+    parser.add_argument("--log_predictions", action="store_true")
 
     # wandb args
     parser.add_argument("--wandb", action="store_true")
