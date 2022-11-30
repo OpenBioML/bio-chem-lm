@@ -11,8 +11,11 @@ from mup import MuAdam, set_base_shapes
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from transformers import (AutoTokenizer, DataCollatorForLanguageModeling,
-                          get_linear_schedule_with_warmup)
+from transformers import (
+    AutoTokenizer,
+    DataCollatorForLanguageModeling,
+    get_linear_schedule_with_warmup,
+)
 
 from bio_lm.metrics import MetricDict, format_metrics
 from bio_lm.model.config import ElectraConfig
@@ -21,7 +24,13 @@ from bio_lm.model.electra import Electra
 from bio_lm.model.generator import ElectraForMaskedLM
 from bio_lm.options import parse_args
 from bio_lm.preprocessing.tokenization import preprocess_fn, tokenize_selfies
-from bio_lm.train_utils import load_config, make_shapes, tie_weights, print_token_diff, print_pred_replaced
+from bio_lm.train_utils import (
+    load_config,
+    make_shapes,
+    tie_weights,
+    print_token_diff,
+    print_pred_replaced,
+)
 
 
 METRIC_NAMES = [
@@ -255,7 +264,11 @@ def train(accelerator, config):
                 loss = model(**batch)
 
                 # filter here
-                loss_values = {key: value.detach() for key, value in loss.items() if key in METRIC_NAMES}
+                loss_values = {
+                    key: value.detach()
+                    for key, value in loss.items()
+                    if key in METRIC_NAMES
+                }
                 loss_values = accelerator.gather_for_metrics(loss)
 
                 # add logging to see what predictions are, are we prediction only things like C?
@@ -263,16 +276,36 @@ def train(accelerator, config):
                 val_metrics.update(loss_values)
 
                 if i < 5 and config["log_predictions"]:
-                   inputs = batch["input_ids"]
-                   masked_input = loss["masked_input"]
-                   disc_input = loss["disc_input"]
-                   disc_preds = loss["disc_predictions"]
-                   random_idx = np.random.randint(inputs.shape[0])
-                   print_token_diff(inputs, tokenizer, inputs, random_idx, prepend="INPUTS")
-                   print_token_diff(masked_input, tokenizer, inputs, random_idx, prepend="MASKED_INPUTS")
-                   print_token_diff(disc_input, tokenizer, inputs, random_idx, "disc_input", prepend="GENERATOR")
-                   print_pred_replaced(disc_input, tokenizer, disc_preds.type(torch.bool), (disc_input != inputs), random_idx)
-
+                    inputs = batch["input_ids"]
+                    masked_input = loss["masked_input"]
+                    disc_input = loss["disc_input"]
+                    disc_preds = loss["disc_predictions"]
+                    random_idx = np.random.randint(inputs.shape[0])
+                    print_token_diff(
+                        inputs, tokenizer, inputs, random_idx, prepend="INPUTS"
+                    )
+                    print_token_diff(
+                        masked_input,
+                        tokenizer,
+                        inputs,
+                        random_idx,
+                        prepend="MASKED_INPUTS",
+                    )
+                    print_token_diff(
+                        disc_input,
+                        tokenizer,
+                        inputs,
+                        random_idx,
+                        "disc_input",
+                        prepend="GENERATOR",
+                    )
+                    print_pred_replaced(
+                        disc_input,
+                        tokenizer,
+                        disc_preds.type(torch.bool),
+                        (disc_input != inputs),
+                        random_idx,
+                    )
 
         log_train = {
             f"train_{key}": value for key, value in train_metrics.compute().items()
