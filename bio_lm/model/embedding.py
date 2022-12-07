@@ -97,8 +97,8 @@ class ElectraEmbeddings(nn.Module):
         if isinstance(self.norm, nn.GroupNorm):
             # group norm only works over channel dim
             reshaped = embeddings.permute(0, 2, 1)
-            hidden_states = self.norm(reshaped)
-            hidden_states = hidden_states.permute(0, 2, 1)
+            embeddings = self.norm(reshaped)
+            embeddings = embeddings.permute(0, 2, 1)
         else:
             embeddings = self.norm(embeddings)
 
