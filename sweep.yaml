@@ -85,6 +85,9 @@ parameters:
   wandb_entity:
     value: "zanussbaum"
 
+  log_predictions:
+    value: true
+
 
 command:
   - accelerate
