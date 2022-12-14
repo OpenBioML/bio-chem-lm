@@ -7,11 +7,9 @@
 #SBATCH --output=/fsx/home-zanussbaum/bio-chem-lm/logs/bio-chem-lm_latest_%A_%a.out  # Set this dir where you want slurm outs to go
 #SBATCH --error=/fsx/home-zanussbaum/bio-chem-lm/logs/bio-chem-lm_latest_%A_%a.err  # Set this dir where you want slurm outs to go
 #SBATCH --comment openbioml
+#SBATCH --partition g40n164
 
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/nccl/build/lib:/opt/aws-ofi-nccl-install/lib
 export NCCL_PROTO=simple
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/aws-ofi-nccl/lib
-export PATH=$PATH:/opt/amazon/efa/bin:/opt/amazon/openmpi/bin
 export FI_EFA_FORK_SAFE=1
 #export FI_LOG_LEVEL=1
 export FI_EFA_USE_DEVICE_RDMA=1 # use for p4dn
@@ -37,9 +35,9 @@ echo MASTER_ADDR=${MASTER_ADDR}
 echo MASTER_PORT=${MASTER_PORT}
 echo WORLD_SIZE=${WORLD_SIZE}
 
-module load cuda/11.4
+module load cuda/11.7
 source /fsx/home-zanussbaum/bio-chem-lm/env/bin/activate
 
 cd /fsx/home-zanussbaum/bio-chem-lm/bio_lm
 
-srun --comment openbioml --gres=gpu:1 --ntasks=1 wandb agent zanussbaum/bio-chem-lm/9a7etnxe
+srun --comment openbioml --gres=gpu:1 --ntasks=1 wandb agent zanussbaum/bio-chem-lm/k67ry3cg
