@@ -1,4 +1,19 @@
-from torchmetrics import MeanMetric
+from functools import partial
+
+from torchmetrics import (AUROC, MeanMetric, MeanSquaredError, PearsonCorrCoef,
+                          Precision)
+
+name2metric = {
+    "rmse": MeanSquaredError,
+    "pearsonr": PearsonCorrCoef,
+    "precision": partial(Precision, task="binary"),
+    "roc": partial(AUROC, task="binary"),
+}
+
+PROBLEM2METRICS = {
+    "regression": ["rmse", "pearsonr"],
+    "classification": ["roc", "precision"],
+}
 
 
 class MetricDict:
@@ -9,7 +24,7 @@ class MetricDict:
         if name2metric:
             for metric_name, metric in name2metric.items():
                 self.metrics[metric_name] = metric().to(device)
-                
+
     def update(self, values):
         for name in self.metrics:
             self.metrics[name].update(**values[name])
