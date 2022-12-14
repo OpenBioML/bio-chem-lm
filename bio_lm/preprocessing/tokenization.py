@@ -1,10 +1,10 @@
 import selfies as sf
 
 
-def tokenize_selfies(examples):
+def tokenize_selfies(examples, col_name="CAN_SELFIES"):
     tokenized_examples = []
 
-    selfies = examples["CAN_SELFIES"]
+    selfies = examples[col_name]
     for example in selfies:
         all_tokens = list(sf.split_selfies(example))
 
@@ -29,5 +29,3 @@ if __name__ == "__main__":
     train_ds = dataset["train"]
 
     item = train_ds[0]
-    #print(item)
-    #print(tokenize_selfies({"CAN_SELFIES": [item["CAN_SELFIES"]]}))
