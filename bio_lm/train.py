@@ -324,8 +324,11 @@ def train(accelerator, config):
         if config["save_model"]:
             accelerator.wait_for_everyone()
             unwrapped_model = accelerator.unwrap_model(model)
-            accelerator.save(
-                unwrapped_model.state_dict(), f"{config['save_dir']}/model_{epoch}.pt"
+            unwrapped_model.save_pretrained(
+                f"{config['save_dir']}_epoch_{epoch}",
+                is_main_process=accelerator.is_main_process,
+                save_function=accelerator.save,
+                state_dict=unwrapped_model.state_dict(),
             )
 
     accelerator.end_training()
