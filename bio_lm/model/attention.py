@@ -17,9 +17,9 @@ class ElectraSelfOutput(nn.Module):
             self.norm = nn.Identity()
         else:
             if config.attn_norm_layer_type == "layer_norm":
-                self.norm = config.attn_norm_layer(normalized_shape=config.hidden_size) 
+                self.norm = nn.LayerNorm(config.hidden_size)
             elif config.attn_norm_layer_type == "group_norm":
-                self.norm = config.attn_norm_layer(num_channels=config.hidden_size)
+                self.norm = nn.GroupNorm(num_groups=config.attn_num_groups, num_channels=config.hidden_size)
             else:
                 raise ValueError(f"Unknown attn_norm_layer_type {config.attn_norm_layer_type}")
 
@@ -224,9 +224,9 @@ class ElectraAttention(nn.Module):
         self.output = ElectraSelfOutput(config)
         if config.prenorm:
             if config.attn_norm_layer_type == "layer_norm":
-                self.prenorm = config.attn_norm_layer(normalized_shape=config.hidden_size) 
+                self.prenorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps) 
             elif config.attn_norm_layer_type == "group_norm":
-                self.prenorm = config.attn_norm_layer(num_channels=config.hidden_size)
+                self.prenorm = nn.GroupNorm(num_groups=config.attn_num_groups, num_channels=config.hidden_size, eps=config.layer_norm_eps)
             else:
                 raise ValueError(f"Unknown attn_norm_layer_type {config.attn_norm_layer_type}")
         else:
