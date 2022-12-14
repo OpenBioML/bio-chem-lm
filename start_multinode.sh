@@ -1,18 +1,20 @@
 #!/bin/bash
 #SBATCH --job-name="openbioml"
-#SBATCH --nodes=4
+#SBATCH --nodes=2
 #SBATCH --ntasks-per-node 1 
 #SBATCH --output=/fsx/home-zanussbaum/bio-chem-lm/logs/bio-chem-lm_latest_%A_%a.out  # Set this dir where you want slurm outs to go
 #SBATCH --error=/fsx/home-zanussbaum/bio-chem-lm/logs/bio-chem-lm_latest_%A_%a.err  # Set this dir where you want slurm outs to go
-#SBATCH --partition g40n164
+#SBATCH --partition g40n404
 #SBATCH --comment openbioml
+#SBATCH --requeue
 #SBATCH --exclusive
 
 export FI_EFA_FORK_SAFE=1
 export FI_LOG_LEVEL=1
 export FI_EFA_USE_DEVICE_RDMA=1 # use for p4dn
 
-export NCCL_DEBUG=DEBUG
+export NCCL_DEBUG=INFO
+export NCCL_PROTO=simple
 
 export PYTHONFAULTHANDLER=1
 
@@ -27,6 +29,7 @@ export WANDB_DIR="/fsx/home-zanussbaum/bio-chem-lm/outputs/"
 export WANDB_CACHE_DIR="/fsx/home-zanussbaum/.cache"
 export WANDB_MODE="online"
 
+export TORCH_SHOW_CPP_STACKTRACES=1
 
 # sent to sub script
 export HOSTNAMES=`scontrol show hostnames "$SLURM_JOB_NODELIST"`
