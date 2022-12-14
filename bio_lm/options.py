@@ -3,6 +3,7 @@ from argparse import ArgumentParser
 
 
 def parse_args():
+    # fmt: off
     parser = ArgumentParser()
 
     # data params
@@ -55,11 +56,13 @@ def parse_args():
     parser.add_argument("--wandb_project", type=str)
     parser.add_argument("--wandb_entity", type=str)
     parser.add_argument("--wandb_run_name", type=str, default=None)
+    # fmt: on
 
     return parser.parse_args()
 
-    
+
 def parse_args_finetune():
+    # fmt: off
     parser = ArgumentParser()
 
     # hf params
@@ -87,12 +90,13 @@ def parse_args_finetune():
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--train_batch_size", type=int, default=32)
     parser.add_argument("--validation_batch_size", type=int, default=32)
+    parser.add_argument("--test_batch_size" , type=int, default=32)
     
     # wandb args
     parser.add_argument("--wandb", action="store_true")
     parser.add_argument("--wandb_project", type=str)
     parser.add_argument("--wandb_entity", type=str)
     parser.add_argument("--wandb_run_name", type=str, default=None)
+    # fmt: on
 
-    
     return parser.parse_args()
