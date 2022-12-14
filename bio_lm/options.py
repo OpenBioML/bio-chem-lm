@@ -55,7 +55,7 @@ def parse_args():
     parser.add_argument("--wandb", action="store_true")
     parser.add_argument("--wandb_project", type=str)
     parser.add_argument("--wandb_entity", type=str)
-    parser.add_argument("--wandb_run_name", type=str, default=None)
+    parser.add_argument("--wandb_exp_name", type=str, default=None)
     # fmt: on
 
     return parser.parse_args()
@@ -90,13 +90,34 @@ def parse_args_finetune():
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--train_batch_size", type=int, default=32)
     parser.add_argument("--validation_batch_size", type=int, default=32)
+    
+    # wandb args
+    parser.add_argument("--wandb", action="store_true")
+    parser.add_argument("--wandb_project", type=str)
+    parser.add_argument("--wandb_entity", type=str)
+    parser.add_argument("--wandb_exp_name", type=str, default=None)
+    # fmt: on
+
+    return parser.parse_args()
+
+
+def parse_args_evaluate():
+    # fmt: off
+    parser = ArgumentParser()
+
+    parser.add_argument("--seed", type=int, default=42)
+
+    # hf params
+    parser.add_argument("--model_name", type=str, required=True)
+    parser.add_argument("--tokenizer_name", type=str, default="zpn/pubchem_selfies_tokenizer_wordlevel_dissociation")
+    parser.add_argument("--dataset_name", type=str, required=True)
     parser.add_argument("--test_batch_size" , type=int, default=32)
     
     # wandb args
     parser.add_argument("--wandb", action="store_true")
     parser.add_argument("--wandb_project", type=str)
     parser.add_argument("--wandb_entity", type=str)
-    parser.add_argument("--wandb_run_name", type=str, default=None)
+    parser.add_argument("--wandb_exp_name", type=str, default=None)
     # fmt: on
 
     return parser.parse_args()
