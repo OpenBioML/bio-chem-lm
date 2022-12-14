@@ -57,3 +57,42 @@ def parse_args():
     parser.add_argument("--wandb_run_name", type=str, default=None)
 
     return parser.parse_args()
+
+    
+def parse_args_finetune():
+    parser = ArgumentParser()
+
+    # hf params
+    parser.add_argument("--model_name", type=str, required=True)
+    parser.add_argument("--tokenizer_name", type=str, default="zpn/pubchem_selfies_tokenizer_wordlevel_dissociation")
+    parser.add_argument("--dataset_name", type=str, required=True)
+
+    # training params
+    parser.add_argument("--num_epochs", type=int, default=10)
+    parser.add_argument("--output_dir", type=str, default="exps/")
+    parser.add_argument("--num_workers", type=int, default=mp.cpu_count())
+    parser.add_argument("--num_warmup_steps", type=int, default=None)
+    parser.add_argument("--num_training_steps", type=int, default=None)
+    parser.add_argument("--scheduler", action="store_true")
+    parser.add_argument("--global_clip_norm", type=float, default=None)
+    parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--patience", type=int, default=None)
+    parser.add_argument("--metric_for_early_stopping", type=str, default="loss")
+
+    parser.add_argument("--save_model", action="store_true")
+    parser.add_argument("--save_dir", type=str)
+
+    # optimizer params
+    parser.add_argument("--lr", type=float, default=1e-4)
+    parser.add_argument("--train_batch_size", type=int, default=32)
+    parser.add_argument("--validation_batch_size", type=int, default=32)
+    
+    # wandb args
+    parser.add_argument("--wandb", action="store_true")
+    parser.add_argument("--wandb_project", type=str)
+    parser.add_argument("--wandb_entity", type=str)
+    parser.add_argument("--wandb_run_name", type=str, default=None)
+
+    
+    return parser.parse_args()
