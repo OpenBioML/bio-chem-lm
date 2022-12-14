@@ -1,5 +1,4 @@
 import getpass
-import os
 
 import torch
 from accelerate import Accelerator, DistributedType
@@ -22,16 +21,11 @@ def finetune(accelerator, config):
     tokenizer = AutoTokenizer.from_pretrained(config["tokenizer_name"])
 
     with accelerator.main_process_first():
-        (
-            train_dataloader,
-            problem_type,
-            num_labels,
-            class_weights,
-            mean,
-            std,
-        ) = load_finetune_dataset(config, tokenizer)
-        val_dataloader, _, _, _, _, _ = load_finetune_dataset(
-            config, tokenizer, split="validation", mean=mean, std=std
+        train_dataloader, problem_type, num_labels, class_weights = load_finetune_dataset(
+            config, tokenizer, split="train"
+        )
+        val_dataloader, _, _, _, = load_finetune_dataset(
+            config, tokenizer, split="validation"
         )
 
     model_config = AutoConfig.from_pretrained(config["model_name"])
@@ -213,7 +207,7 @@ def finetune(accelerator, config):
             accelerator.wait_for_everyone()
             unwrapped_model = accelerator.unwrap_model(model)
             unwrapped_model.save_pretrained(
-                config["save_dir"],
+                f"{config['save_dir']}_epoch_{epoch}",
                 is_main_process=accelerator.is_main_process,
                 save_function=accelerator.save,
                 state_dict=unwrapped_model.state_dict(),
@@ -226,7 +220,7 @@ def finetune(accelerator, config):
 
 
 if __name__ == "__main__":
-    accelerator = Accelerator()  # log_with="wandb")
+    accelerator = Accelerator(log_with="wandb")
 
     args = parse_args_finetune()
 
@@ -240,19 +234,11 @@ if __name__ == "__main__":
             config["wandb_entity"] if config["wandb_entity"] else getpass.getuser()
         )
 
-    name = config["wandb_exp_name"] if "wandb_exp_name" in config else None
     accelerator.init_trackers(
         project_name=config["wandb_project"],
         config=config,
-        init_kwargs={"wandb": {"entity": config["wandb_entity"], "name": name}},
+        init_kwargs={"wandb": {"entity": config["wandb_entity"], "name": config["wandb_exp_name"]}},
     )
-
-    if config["save_model"]:
-        # create save dir with random name
-        if not os.path.exists(config["save_dir"]):
-            # only save once per server (not sure if needed?)
-            if accelerator.is_local_main_process:
-                os.makedirs(config["save_dir"], exist_ok=True)
 
     accelerator.print("| configs: ")
     for k, v in config.items():
