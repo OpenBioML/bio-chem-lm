@@ -6,32 +6,40 @@ from accelerate import Accelerator, DistributedType
 from accelerate.utils import set_seed
 from torch.optim import Adam
 from tqdm import tqdm
-from transformers import (
-    AutoTokenizer,
-    AutoConfig,
-    get_linear_schedule_with_warmup,
-)
+from transformers import (AutoConfig, AutoTokenizer,
+                          get_linear_schedule_with_warmup)
 
 from bio_lm.dataset import load_finetune_dataset
-from bio_lm.metrics import MetricDict, format_metrics, name2metric, PROBLEM2METRICS
+from bio_lm.metrics import (PROBLEM2METRICS, MetricDict, format_metrics,
+                            name2metric)
 from bio_lm.model.classifier import ElectraForSequenceClassification
 from bio_lm.options import parse_args_finetune
 
-    
+
 def finetune(accelerator, config):
     set_seed(config["seed"])
     accelerator.print(f"NUM GPUS: {accelerator.num_processes}")
     tokenizer = AutoTokenizer.from_pretrained(config["tokenizer_name"])
 
     with accelerator.main_process_first():
-        train_dataloader, problem_type, num_labels, class_weights, mean, std = load_finetune_dataset(config, tokenizer)
-        val_dataloader, _, _, _, _, _ = load_finetune_dataset(config, tokenizer, split="validation", mean=mean, std=std)
-
+        (
+            train_dataloader,
+            problem_type,
+            num_labels,
+            class_weights,
+            mean,
+            std,
+        ) = load_finetune_dataset(config, tokenizer)
+        val_dataloader, _, _, _, _, _ = load_finetune_dataset(
+            config, tokenizer, split="validation", mean=mean, std=std
+        )
 
     model_config = AutoConfig.from_pretrained(config["model_name"])
     model_config.num_labels = num_labels
     model_config.class_weights = class_weights
-    model = ElectraForSequenceClassification.from_pretrained(config["model_name"], config=model_config) 
+    model = ElectraForSequenceClassification.from_pretrained(
+        config["model_name"], config=model_config
+    )
 
     device = accelerator.device
     model.to(device)
@@ -49,12 +57,16 @@ def finetune(accelerator, config):
 
     train_metrics = MetricDict(
         ["loss"],
-        name2metric={metric_name: name2metric[metric_name] for metric_name in metric_names},
+        name2metric={
+            metric_name: name2metric[metric_name] for metric_name in metric_names
+        },
         device=device,
     )
     val_metrics = MetricDict(
         ["loss"],
-        name2metric={metric_name: name2metric[metric_name] for metric_name in metric_names},
+        name2metric={
+            metric_name: name2metric[metric_name] for metric_name in metric_names
+        },
         device=device,
     )
 
@@ -76,9 +88,12 @@ def finetune(accelerator, config):
     if config["patience"] is not None:
         patience = 0
         early_stopping_metric_name = config["metric_for_early_stopping"]
-        maximize = True if early_stopping_metric_name in ["pearsonr", "auroc", "precision"] else False
+        maximize = (
+            True
+            if early_stopping_metric_name in ["pearsonr", "auroc", "precision"]
+            else False
+        )
         best_val = float("-inf") if maximize else float("inf")
-        
 
     for epoch in range(config["num_epochs"]):
         for step, batch in enumerate(
@@ -145,12 +160,11 @@ def finetune(accelerator, config):
                 if i == 5 and config["debug"]:
                     break
 
-
                 model.eval()
                 outputs = model(**batch)
                 logits = outputs["logits"]
                 loss = outputs["loss"]
-                
+
                 logits = accelerator.gather_for_metrics(logits)
                 targets = accelerator.gather_for_metrics(batch["target"])
 
@@ -164,7 +178,6 @@ def finetune(accelerator, config):
                         metrics[metric] = {"preds": logits.squeeze(), "target": targets}
 
                 val_metrics.update(metrics)
-
 
         log_train = {
             f"train_{key}": value for key, value in train_metrics.compute().items()
@@ -193,7 +206,6 @@ def finetune(accelerator, config):
             else:
                 patience += 1
 
-
         train_metrics.reset_metrics()
         val_metrics.reset_metrics()
 
@@ -201,13 +213,12 @@ def finetune(accelerator, config):
             accelerator.wait_for_everyone()
             unwrapped_model = accelerator.unwrap_model(model)
             unwrapped_model.save_pretrained(
-                config['save_dir'],
+                config["save_dir"],
                 is_main_process=accelerator.is_main_process,
                 save_function=accelerator.save,
                 state_dict=unwrapped_model.state_dict(),
             )
 
-            
         if patience == config["patience"]:
             break
 
@@ -215,7 +226,7 @@ def finetune(accelerator, config):
 
 
 if __name__ == "__main__":
-    accelerator = Accelerator()#log_with="wandb")
+    accelerator = Accelerator()  # log_with="wandb")
 
     args = parse_args_finetune()
 
