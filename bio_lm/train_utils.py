@@ -173,3 +173,7 @@ def print_pred_replaced(tokens, tokenizer, pred_replaced, labels, idx):
             decoded[j] = wrong + decoded[j] + ENDC
 
     print("DISCRIMINATOR: " + ": " + " ".join(decoded[:first_pad]))
+
+    
+def standardize(inputs, mean, std):
+    return {"target": (inputs["target"] - mean) / std}
