@@ -2,12 +2,17 @@ from torchmetrics import MeanMetric
 
 
 class MetricDict:
-    def __init__(self, names, device) -> None:
-        self.metrics = {name: MeanMetric().to(device) for name in names}
+    def __init__(self, names, device, name2metric=None) -> None:
+        if names:
+            self.metrics = {name: MeanMetric().to(device) for name in names}
 
+        if name2metric:
+            for metric_name, metric in name2metric.items():
+                self.metrics[metric_name] = metric().to(device)
+                
     def update(self, values):
         for name in self.metrics:
-            self.metrics[name].update(values[name])
+            self.metrics[name].update(**values[name])
 
     def compute(self):
         return {name: metric.compute() for name, metric in self.metrics.items()}
