@@ -1,101 +1,31 @@
 import getpass
-import numpy as np
 import os
-from functools import partial
 
 import torch
 from accelerate import Accelerator, DistributedType
 from accelerate.utils import set_seed
-from datasets import load_dataset
 from torch.optim import Adam
-from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import (
     AutoTokenizer,
     AutoConfig,
-    DefaultDataCollator,
     get_linear_schedule_with_warmup,
 )
 
-from bio_lm.metrics import MetricDict, format_metrics
+from bio_lm.dataset import load_finetune_dataset
+from bio_lm.metrics import MetricDict, format_metrics, name2metric, PROBLEM2METRICS
 from bio_lm.model.classifier import ElectraForSequenceClassification
 from bio_lm.options import parse_args_finetune
-from bio_lm.preprocessing.tokenization import preprocess_fn, tokenize_selfies
-from bio_lm.train_utils import standardize
-
-from torchmetrics import AUROC, MeanSquaredError, PearsonCorrCoef, Precision
-from sklearn.utils.class_weight import compute_class_weight
-
-
-name2metric = {
-    "rmse": MeanSquaredError,
-    "pearsonr": PearsonCorrCoef,
-    "precision": partial(Precision, task="binary"),
-    "roc": partial(AUROC, task="binary"),
-}
-
-PROBLEM2METRICS = {
-    "regression": ["rmse", "pearsonr"],
-    "classification": ["roc", "precision"]
-}
-
-
-def load_data(config, tokenizer, split="train", mean=None, std=None):
-    dataset = load_dataset(config["dataset_name"], split=split)
-
-    if hasattr(dataset.features["target"], "num_classes"):
-        problem_type = "classification"
-        num_labels = dataset.features["target"].num_classes
-        class_weights = compute_class_weight(classes=np.unique(dataset["target"]), y=dataset["target"], class_weight="balanced")
-        mean, std = None, None
-    else:
-        problem_type = "regression"
-        num_labels = 1
-        class_weights = None
-        if split == "train":
-            mean = np.mean(dataset["target"])
-            std = np.std(dataset["target"])
-
-    dataset = dataset.shuffle(seed=config["seed"])
-    dataset = dataset.map(
-        lambda x: tokenize_selfies(x, col_name="selfies"), batched=True, batch_size=config[f"{split}_batch_size"]
-    )
-    dataset = dataset.map(
-        lambda x: preprocess_fn(x, tokenizer),
-        batched=True,
-        remove_columns=[
-            "smiles",
-            "selfies",
-            "tokenized",
-        ],
-    )
-
-    # for validation, we pass this in (hacky)
-    if mean is not None or std is not None:
-        dataset = dataset.map(
-            lambda x: standardize(x, mean=mean, std=std),
-            batched=True,
-        )
-
-    dataset = dataset.with_format("torch")
-
-    dataloader = DataLoader(
-        dataset,
-        collate_fn=DefaultDataCollator(),
-        batch_size=config[f"{split}_batch_size"],
-    )
-
-    return dataloader, problem_type, num_labels, class_weights, mean, std
 
     
-def train(accelerator, config):
+def finetune(accelerator, config):
     set_seed(config["seed"])
     accelerator.print(f"NUM GPUS: {accelerator.num_processes}")
     tokenizer = AutoTokenizer.from_pretrained(config["tokenizer_name"])
 
     with accelerator.main_process_first():
-        train_dataloader, problem_type, num_labels, class_weights, mean, std = load_data(config, tokenizer)
-        val_dataloader, _, _, _, _, _ = load_data(config, tokenizer, split="validation", mean=mean, std=std)
+        train_dataloader, problem_type, num_labels, class_weights, mean, std = load_finetune_dataset(config, tokenizer)
+        val_dataloader, _, _, _, _, _ = load_finetune_dataset(config, tokenizer, split="validation", mean=mean, std=std)
 
 
     model_config = AutoConfig.from_pretrained(config["model_name"])
@@ -314,4 +244,4 @@ if __name__ == "__main__":
     for k, v in config.items():
         accelerator.print("  |", k, " : ", v)
 
-    train(accelerator=accelerator, config=config)
+    finetune(accelerator=accelerator, config=config)
