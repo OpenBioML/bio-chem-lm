@@ -200,8 +200,11 @@ def finetune(accelerator, config):
         if config["save_model"]:
             accelerator.wait_for_everyone()
             unwrapped_model = accelerator.unwrap_model(model)
-            accelerator.save(
-                unwrapped_model.state_dict(), f"{config['save_dir']}/model_{epoch}.pt"
+            unwrapped_model.save_pretrained(
+                config['save_dir'],
+                is_main_process=accelerator.is_main_process,
+                save_function=accelerator.save,
+                state_dict=unwrapped_model.state_dict(),
             )
 
             
