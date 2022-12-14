@@ -161,17 +161,3 @@ class ElectraConfig(PretrainedConfig):
         self.attn_num_groups = attn_num_groups
         self.output_mult = output_mult
         self.readout_zero_init = readout_zero_init
-
-        if self.attn_norm_layer_type == "layer_norm":
-            self.attn_norm_layer = partial(nn.LayerNorm, eps=self.layer_norm_eps)
-        elif self.attn_norm_layer_type == "group_norm":
-            self.attn_norm_layer = partial(nn.GroupNorm, num_groups=self.attn_num_groups)
-        else:
-            raise ValueError(f"norm_layer_type {self.norm_layer_type} not supported")
-            
-        if self.embedding_norm_layer_type == "layer_norm":
-            self.embedding_norm_layer = partial(nn.LayerNorm, eps=self.layer_norm_eps)
-        elif self.embedding_norm_layer_type == "group_norm":
-            self.embedding_norm_layer = partial(nn.GroupNorm, num_groups=self.embedding_num_groups)
-        else:
-            raise ValueError(f"norm_layer_type {self.norm_layer_type} not supported")

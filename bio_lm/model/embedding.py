@@ -1,5 +1,3 @@
-from functools import partial
-
 import torch
 import torch.nn as nn
 
@@ -23,9 +21,9 @@ class ElectraEmbeddings(nn.Module):
         # any TensorFlow checkpoint file
 
         if config.embedding_norm_layer_type == "layer_norm":
-            self.norm = config.embedding_norm_layer(normalized_shape=config.embedding_size) 
+            self.norm = nn.LayerNorm(config.embedding_size, eps=config.layer_norm_eps)
         elif config.embedding_norm_layer_type == "group_norm":
-            self.norm = config.embedding_norm_layer(num_channels=config.embedding_size)
+            self.norm = nn.GroupNorm(num_groups=config.embedding_num_groups, num_channels=config.embedding_size)
         else:
             raise ValueError(f"Unknown attn_norm_layer_type {config.attn_norm_layer_type}")
 
