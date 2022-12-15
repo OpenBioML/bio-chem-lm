@@ -4,7 +4,7 @@ from torchmetrics import (AUROC, MeanMetric, MeanSquaredError, PearsonCorrCoef,
                           Precision)
 
 name2metric = {
-    "rmse": MeanSquaredError,
+    "rmse": partial(MeanSquaredError, squared=False),
     "pearsonr": PearsonCorrCoef,
     "precision": partial(Precision, task="binary"),
     "roc": partial(AUROC, task="binary"),
