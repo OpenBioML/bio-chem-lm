@@ -7,7 +7,7 @@
 #SBATCH --output=/fsx/home-zanussbaum/bio-chem-lm/logs/bio-chem-lm_latest_%A_%a.out  # Set this dir where you want slurm outs to go
 #SBATCH --error=/fsx/home-zanussbaum/bio-chem-lm/logs/bio-chem-lm_latest_%A_%a.err  # Set this dir where you want slurm outs to go
 #SBATCH --comment openbioml
-#SBATCH --partition g40n164
+#SBATCH --partition g40n404
 
 export NCCL_PROTO=simple
 export FI_EFA_FORK_SAFE=1
@@ -40,4 +40,4 @@ source /fsx/home-zanussbaum/bio-chem-lm/env/bin/activate
 
 cd /fsx/home-zanussbaum/bio-chem-lm/bio_lm
 
-srun --comment openbioml --gres=gpu:1 --ntasks=1 wandb agent zanussbaum/bio-chem-lm/k67ry3cg
+srun --comment openbioml --gres=gpu:1 --ntasks=1 wandb agent zanussbaum/bio-chem-lm/nj1zeot5
