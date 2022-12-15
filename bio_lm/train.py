@@ -236,7 +236,7 @@ def train(accelerator, config):
 
             # filter here
             loss_values = {
-                key: value.detach()
+                key: {"value": value.detach()}
                 for key, value in loss.items()
                 if key in METRIC_NAMES
             }
@@ -265,11 +265,11 @@ def train(accelerator, config):
 
                 # filter here
                 loss_values = {
-                    key: value.detach()
+                    key: {"value": value.detach()}
                     for key, value in loss.items()
                     if key in METRIC_NAMES
                 }
-                loss_values = accelerator.gather_for_metrics(loss)
+                loss_values = accelerator.gather_for_metrics(loss_values)
 
                 # add logging to see what predictions are, are we prediction only things like C?
 
