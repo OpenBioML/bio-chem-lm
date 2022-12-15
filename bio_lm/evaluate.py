@@ -86,11 +86,11 @@ def evaluate(accelerator, config):
         accelerator.log({**log_test})
 
     accelerator.print(format_metrics(log_test, "test", f" epoch 0 "))
-    accelerator.end_training()
+    if config["wandb"]:
+        accelerator.end_training()
 
 
 if __name__ == "__main__":
-    accelerator = Accelerator(log_with="wandb")
 
     args = parse_args_evaluate()
 
@@ -98,6 +98,7 @@ if __name__ == "__main__":
     config.update({k: v for k, v in args.__dict__.items()})
 
     if config["wandb"] or config["wandb_entity"]:
+        accelerator = Accelerator(log_with="wandb")
         # if we set wandb_entity, we set to True automatically
         config["wandb"] = True
         config["wandb_entity"] = (
@@ -108,16 +109,18 @@ if __name__ == "__main__":
                 "wandb_exp_name"
             ] = f"{config['model_name']}_{config['dataset_name']}"
 
-    accelerator.init_trackers(
-        project_name=config["wandb_project"],
-        config=config,
-        init_kwargs={
-            "wandb": {
-                "entity": config["wandb_entity"],
-                "name": config["wandb_exp_name"],
-            }
-        },
-    )
+        accelerator.init_trackers(
+            project_name=config["wandb_project"],
+            config=config,
+            init_kwargs={
+                "wandb": {
+                    "entity": config["wandb_entity"],
+                    "name": config["wandb_exp_name"],
+                }
+            },
+        )
+    else:
+        accelerator = Accelerator()
 
     accelerator.print("| configs: ")
     for k, v in config.items():
