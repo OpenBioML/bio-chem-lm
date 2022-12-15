@@ -5,9 +5,8 @@ from accelerate import Accelerator, DistributedType
 from accelerate.utils import set_seed
 from torch.optim import Adam
 from tqdm import tqdm
-from transformers import (AutoConfig, AutoTokenizer,
-                          get_linear_schedule_with_warmup)
-
+from transformers import AutoConfig, AutoTokenizer
+                          
 from bio_lm.dataset import load_finetune_dataset
 from bio_lm.metrics import (PROBLEM2METRICS, MetricDict, format_metrics,
                             name2metric)
@@ -40,13 +39,6 @@ def finetune(accelerator, config):
 
     optimizer = Adam(model.parameters(), lr=config["lr"])
 
-    if config["scheduler"]:
-        scheduler = get_linear_schedule_with_warmup(
-            optimizer,
-            num_warmup_steps=config["num_warmup_steps"],
-            num_training_steps=config["num_training_steps"],
-        )
-
     metric_names = PROBLEM2METRICS[problem_type]
 
     train_metrics = MetricDict(
@@ -64,30 +56,18 @@ def finetune(accelerator, config):
         device=device,
     )
 
-    if config["scheduler"]:
-        (
-            model,
-            optimizer,
-            train_dataloader,
-            val_dataloader,
-            scheduler,
-        ) = accelerator.prepare(
-            model, optimizer, train_dataloader, val_dataloader, scheduler
-        )
-    else:
-        model, optimizer, train_dataloader, val_dataloader = accelerator.prepare(
-            model, optimizer, train_dataloader, val_dataloader
-        )
+    model, optimizer, train_dataloader, val_dataloader = accelerator.prepare(
+        model, optimizer, train_dataloader, val_dataloader
+    )
 
-    if config["patience"] is not None:
-        patience = 0
-        early_stopping_metric_name = config["metric_for_early_stopping"]
-        maximize = (
-            True
-            if early_stopping_metric_name in ["pearsonr", "auroc", "precision"]
-            else False
-        )
-        best_val = float("-inf") if maximize else float("inf")
+    patience = 0
+    early_stopping_metric_name = config["metric_for_early_stopping"]
+    maximize = (
+        True
+        if early_stopping_metric_name in ["pearsonr", "auroc", "precision"]
+        else False
+    )
+    best_val = float("-inf") if maximize else float("inf")
 
     for epoch in range(config["num_epochs"]):
         for step, batch in enumerate(
@@ -123,9 +103,6 @@ def finetune(accelerator, config):
                     )
 
             optimizer.step()
-
-            if config["scheduler"]:
-                scheduler.step()
 
             logits = accelerator.gather_for_metrics(logits)
             targets = accelerator.gather_for_metrics(batch["target"])
@@ -213,14 +190,14 @@ def finetune(accelerator, config):
                 state_dict=unwrapped_model.state_dict(),
             )
 
-        if patience == config["patience"]:
+        if config["patience"] > 0 and patience == config["patience"]:
             break
-
-    accelerator.end_training()
+    
+    if config["wandb"]:
+        accelerator.end_training()
 
 
 if __name__ == "__main__":
-    accelerator = Accelerator(log_with="wandb")
 
     args = parse_args_finetune()
 
@@ -228,17 +205,20 @@ if __name__ == "__main__":
     config.update({k: v for k, v in args.__dict__.items()})
 
     if config["wandb"] or config["wandb_entity"]:
+        accelerator = Accelerator(log_with="wandb")
         # if we set wandb_entity, we set to True automatically
         config["wandb"] = True
         config["wandb_entity"] = (
             config["wandb_entity"] if config["wandb_entity"] else getpass.getuser()
         )
 
-    accelerator.init_trackers(
-        project_name=config["wandb_project"],
-        config=config,
-        init_kwargs={"wandb": {"entity": config["wandb_entity"], "name": config["wandb_exp_name"]}},
-    )
+        accelerator.init_trackers(
+            project_name=config["wandb_project"],
+            config=config,
+            init_kwargs={"wandb": {"entity": config["wandb_entity"], "name": config["wandb_exp_name"]}},
+        )
+    else:
+        accelerator = Accelerator()
 
     accelerator.print("| configs: ")
     for k, v in config.items():
