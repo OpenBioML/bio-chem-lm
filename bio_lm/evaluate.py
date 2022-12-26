@@ -1,12 +1,13 @@
 import getpass
 
 import torch
+import torch.nn.functional as F
 from accelerate import Accelerator
 from accelerate.utils import set_seed
 from tqdm import tqdm
 from transformers import AutoConfig, AutoTokenizer
 
-from bio_lm.dataset import load_finetune_dataset
+from bio_lm.dataset import load_finetune_dataset, get_training_statistics
 from bio_lm.metrics import (PROBLEM2METRICS, MetricDict, format_metrics,
                             name2metric)
 from bio_lm.model.classifier import ElectraForSequenceClassification
@@ -47,7 +48,6 @@ def evaluate(accelerator, config):
     )
 
     model, test_dataloader = accelerator.prepare(model, test_dataloader)
-
     with torch.no_grad():
         # we only evalute with N steps since there are 10M data points!!
         for i, batch in enumerate(
@@ -58,9 +58,6 @@ def evaluate(accelerator, config):
                 disable=not accelerator.is_local_main_process,
             )
         ):
-            if i == 5 and config["debug"]:
-                break
-
             model.eval()
             outputs = model(**batch)
             logits = outputs["logits"]
@@ -71,10 +68,9 @@ def evaluate(accelerator, config):
 
             loss = accelerator.gather_for_metrics(loss)
             metrics = {"loss": {"value": loss.detach().item()}}
-
             for metric in metric_names:
                 if num_labels == 2:
-                    metrics[metric] = {"preds": logits[:, 0], "target": targets}
+                    metrics[metric] = {"preds": F.softmax(logits, dim=1)[:, 1], "target": targets}
                 else:
                     metrics[metric] = {"preds": logits.squeeze(), "target": targets}
 
