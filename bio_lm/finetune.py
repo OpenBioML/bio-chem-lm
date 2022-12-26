@@ -1,6 +1,7 @@
 import getpass
 
 import torch
+import torch.nn.functional as F
 from accelerate import Accelerator, DistributedType
 from accelerate.utils import set_seed
 from torch.optim import Adam
@@ -29,7 +30,8 @@ def finetune(accelerator, config):
 
     model_config = AutoConfig.from_pretrained(config["model_name"])
     model_config.num_labels = num_labels
-    model_config.class_weights = class_weights
+    if class_weights is not None:
+        model_config.class_weights = list(class_weights)
     model = ElectraForSequenceClassification.from_pretrained(
         config["model_name"], config=model_config
     )
@@ -64,7 +66,7 @@ def finetune(accelerator, config):
     early_stopping_metric_name = config["metric_for_early_stopping"]
     maximize = (
         True
-        if early_stopping_metric_name in ["pearsonr", "auroc", "precision"]
+        if early_stopping_metric_name in ["pearsonr", "roc", "precision"]
         else False
     )
     best_val = float("-inf") if maximize else float("inf")
@@ -112,10 +114,15 @@ def finetune(accelerator, config):
 
             for metric in metric_names:
                 if num_labels == 2:
-                    metrics[metric] = {"preds": logits[:, 0], "target": targets}
+                    metrics[metric] = {"preds": F.softmax(logits, dim=-1)[:, 1], "target": targets}
                 else:
-                    metrics[metric] = {"preds": logits.squeeze(), "target": targets}
+                    if logits.dim() > 1:
+                        logits = logits.squeeze()
 
+                    if len(logits.size()) == 0:
+                        logits = logits.unsqueeze(0)
+
+                    metrics[metric] = {"preds": logits, "target": targets}
             train_metrics.update(metrics)
 
         with torch.no_grad():
@@ -144,9 +151,15 @@ def finetune(accelerator, config):
 
                 for metric in metric_names:
                     if num_labels == 2:
-                        metrics[metric] = {"preds": logits[:, 0], "target": targets}
+                        metrics[metric] = {"preds": F.softmax(logits, dim=-1)[:, 1], "target": targets}
                     else:
-                        metrics[metric] = {"preds": logits.squeeze(), "target": targets}
+                        if logits.dim() > 1:
+                            logits = logits.squeeze()
+
+                        if len(logits.size()) == 0:
+                            logits = logits.unsqueeze(0)
+
+                        metrics[metric] = {"preds": logits, "target": targets}
 
                 val_metrics.update(metrics)
 
