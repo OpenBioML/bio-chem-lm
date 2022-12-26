@@ -126,7 +126,7 @@ class ElectraForSequenceClassification(ElectraPreTrainedModel):
                 else:
                     loss = loss_fct(logits, target)
             elif self.config.problem_type == "single_label_classification":
-                loss_fct = CrossEntropyLoss(weight=torch.from_numpy(self.config.class_weights).to(target.device).type(torch.float32))
+                loss_fct = CrossEntropyLoss(weight=torch.Tensor(self.config.class_weights).to(target.device).type(torch.float32))
                 loss = loss_fct(logits.view(-1, self.num_labels), target.view(-1))
             elif self.config.problem_type == "multi_label_classification":
                 loss_fct = BCEWithLogitsLoss()
