@@ -1,6 +1,3 @@
-from functools import partial
-
-import torch.nn as nn
 from transformers.configuration_utils import PretrainedConfig
 
 

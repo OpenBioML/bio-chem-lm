@@ -4,8 +4,8 @@ from mup.init import normal_
 from transformers.modeling_utils import PreTrainedModel
 from transformers.models.electra import load_tf_weights_in_electra
 
-from bio_lm.model.attention import ElectraSelfAttention
-from bio_lm.model.config import ElectraConfig
+from bio_lm.model.electra.attention import ElectraSelfAttention
+from bio_lm.model.electra.config import ElectraConfig
 
 
 class ElectraPreTrainedModel(PreTrainedModel):

@@ -7,8 +7,8 @@ from mup import MuReadout
 from transformers.modeling_outputs import ModelOutput
 from transformers.modeling_utils import get_activation
 
-from bio_lm.model.base_model import ElectraModel
-from bio_lm.model.pretrained import ElectraPreTrainedModel
+from bio_lm.model.electra.base_model import ElectraModel
+from bio_lm.model.electra.pretrained import ElectraPreTrainedModel
 
 
 @dataclass

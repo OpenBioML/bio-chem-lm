@@ -5,7 +5,7 @@ from functools import reduce
 import torch
 import torch.nn.functional as F
 from torch import nn
-from bio_lm.model.pretrained import ElectraPreTrainedModel
+from bio_lm.model.electra.pretrained import ElectraPreTrainedModel
 
 # copied from lucidrains and updated
 # constants

@@ -6,7 +6,7 @@ from rotary_embedding_torch import RotaryEmbedding
 from transformers.modeling_utils import (find_pruneable_heads_and_indices,
                                          prune_linear_layer)
 
-from bio_lm.model.pe import AlibiPositionalBias
+from bio_lm.model.electra.pe import AlibiPositionalBias
 
 
 class ElectraSelfOutput(nn.Module):

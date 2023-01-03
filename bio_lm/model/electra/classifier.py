@@ -1,5 +1,5 @@
-from bio_lm.model.pretrained import ElectraPreTrainedModel
-from bio_lm.model.base_model import ElectraModel
+from bio_lm.model.electra.pretrained import ElectraPreTrainedModel
+from bio_lm.model.electra.base_model import ElectraModel
 from dataclasses import dataclass
 from mup import MuReadout
 

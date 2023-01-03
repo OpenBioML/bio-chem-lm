@@ -5,8 +5,8 @@ from transformers.modeling_outputs import \
     BaseModelOutputWithPastAndCrossAttentions
 from transformers.modeling_utils import apply_chunking_to_forward
 
-from bio_lm.model.attention import ElectraAttention
-from bio_lm.model.output import ElectraOutput
+from bio_lm.model.electra.attention import ElectraAttention
+from bio_lm.model.electra.output import ElectraOutput
 
 
 class ElectraIntermediate(nn.Module):
