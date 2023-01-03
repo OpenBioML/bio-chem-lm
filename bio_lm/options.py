@@ -67,6 +67,7 @@ def parse_args_finetune():
 
     # hf params
     parser.add_argument("--model_name", type=str, required=True)
+    parser.add_argument("--model_type", default="electra")
     parser.add_argument("--tokenizer_name", type=str, default="zpn/pubchem_selfies_tokenizer_wordlevel_dissociation")
     parser.add_argument("--dataset_name", type=str, required=True)
 
