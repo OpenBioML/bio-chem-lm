@@ -7,10 +7,10 @@ import yaml
 from datetime import datetime
 from mup import make_base_shapes
 
-from bio_lm.model.config import ElectraConfig
-from bio_lm.model.discriminator import ElectraForPreTraining
-from bio_lm.model.electra import Electra
-from bio_lm.model.generator import ElectraForMaskedLM
+from bio_lm.model.electra.config import ElectraConfig
+from bio_lm.model.electra.discriminator import ElectraForPreTraining
+from bio_lm.model.electra.electra import Electra
+from bio_lm.model.electra.generator import ElectraForMaskedLM
 
 BASE = "model/configs/{model_type}/{size}"
 

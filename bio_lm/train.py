@@ -18,10 +18,10 @@ from transformers import (
 )
 
 from bio_lm.metrics import MetricDict, format_metrics
-from bio_lm.model.config import ElectraConfig
-from bio_lm.model.discriminator import ElectraForPreTraining
-from bio_lm.model.electra import Electra
-from bio_lm.model.generator import ElectraForMaskedLM
+from bio_lm.model.electra.config import ElectraConfig
+from bio_lm.model.electra.discriminator import ElectraForPreTraining
+from bio_lm.model.electra.electra import Electra
+from bio_lm.model.electra.generator import ElectraForMaskedLM
 from bio_lm.options import parse_args
 from bio_lm.preprocessing.tokenization import preprocess_fn, tokenize_selfies
 from bio_lm.train_utils import (
@@ -125,6 +125,7 @@ def train(accelerator, config):
             pad_token_id=tokenizer.pad_token_id,
             mask_token_id=tokenizer.mask_token_id,
             config=discriminator_config,
+            mask_prob=config["mask_prob"],
         )
 
         set_base_shapes(model, electra_shapes_filename)
@@ -335,7 +336,6 @@ def train(accelerator, config):
 
 
 if __name__ == "__main__":
-    accelerator = Accelerator(log_with="wandb")
 
     args = parse_args()
 
@@ -343,18 +343,21 @@ if __name__ == "__main__":
     config.update({k: v for k, v in args.__dict__.items()})
 
     if config["wandb"] or config["wandb_entity"]:
+        accelerator = Accelerator(log_with="wandb")
         # if we set wandb_entity, we set to True automatically
         config["wandb"] = True
         config["wandb_entity"] = (
             config["wandb_entity"] if config["wandb_entity"] else getpass.getuser()
         )
 
-    name = config["wandb_exp_name"] if "wandb_exp_name" in config else None
-    accelerator.init_trackers(
-        project_name=config["wandb_project"],
-        config=config,
-        init_kwargs={"wandb": {"entity": config["wandb_entity"], "name": name}},
-    )
+        name = config["wandb_exp_name"] if "wandb_exp_name" in config else None
+        accelerator.init_trackers(
+            project_name=config["wandb_project"],
+            config=config,
+            init_kwargs={"wandb": {"entity": config["wandb_entity"], "name": name}},
+        )
+    else:
+        accelerator = Accelerator()
 
     if config["save_model"]:
         # create save dir with random name
