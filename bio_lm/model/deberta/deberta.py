@@ -22,7 +22,7 @@ import torch.utils.checkpoint
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, LayerNorm, MSELoss
 
-from ...activations import ACT2FN
+from transformers.modeling_utils import get_activation
 from ...modeling_outputs import (
     BaseModelOutput,
     MaskedLMOutput,
@@ -91,7 +91,8 @@ class ContextPooler(nn.Module):
         context_token = hidden_states[:, 0]
         context_token = self.dropout(context_token)
         pooled_output = self.dense(context_token)
-        pooled_output = ACT2FN[self.config.pooler_hidden_act](pooled_output)
+
+        pooled_output = get_activation(self.config.pooler_hidden_act)(pooled_output)
         return pooled_output
 
     @property
@@ -340,7 +341,7 @@ class DebertaV2Intermediate(nn.Module):
         super().__init__()
         self.dense = nn.Linear(config.hidden_size, config.intermediate_size)
         if isinstance(config.hidden_act, str):
-            self.intermediate_act_fn = ACT2FN[config.hidden_act]
+            self.intermediate_act_fn = get_activation(config.hidden_act)
         else:
             self.intermediate_act_fn = config.hidden_act
 
@@ -418,7 +419,7 @@ class ConvLayer(nn.Module):
         out = self.conv(hidden_states.permute(0, 2, 1).contiguous()).permute(0, 2, 1).contiguous()
         rmask = (1 - input_mask).bool()
         out.masked_fill_(rmask.unsqueeze(-1).expand(out.size()), 0)
-        out = ACT2FN[self.conv_act](self.dropout(out))
+        out = get_activation(self.conv_act)(out)
 
         layer_norm_input = residual_states + out
         output = self.LayerNorm(layer_norm_input).to(layer_norm_input)
@@ -1234,7 +1235,7 @@ class DebertaV2PredictionHeadTransform(nn.Module):
         super().__init__()
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         if isinstance(config.hidden_act, str):
-            self.transform_act_fn = ACT2FN[config.hidden_act]
+            self.transform_act_fn = get_activation(config.hidden_act)
         else:
             self.transform_act_fn = config.hidden_act
         self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
