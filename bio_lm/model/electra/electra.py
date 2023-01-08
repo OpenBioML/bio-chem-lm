@@ -1,4 +1,3 @@
-import math
 from collections import namedtuple
 from functools import reduce
 
