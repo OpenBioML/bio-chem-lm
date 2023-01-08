@@ -9,6 +9,8 @@ hostfile
 **logs**
 **.pt**
 **.bin**
+**.csv**
+**.zip**
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
