@@ -6,12 +6,15 @@ from accelerate import Accelerator, DistributedType
 from accelerate.utils import set_seed
 from torch.optim import Adam
 from tqdm import tqdm
-from transformers import AutoConfig, AutoTokenizer
+from transformers import AutoConfig, AutoTokenizer 
                           
 from bio_lm.dataset import load_finetune_dataset
 from bio_lm.metrics import (PROBLEM2METRICS, MetricDict, format_metrics,
                             name2metric)
-from bio_lm.model.classifier import ElectraForSequenceClassification
+from bio_lm.model.electra.classifier import ElectraForSequenceClassification
+from bio_lm.model.roberta.classifier import RobertaForSequenceClassification, RobertaForRegression
+from bio_lm.train_utils import prune_state_dict
+
 from bio_lm.options import parse_args_finetune
 
 
@@ -22,20 +25,50 @@ def finetune(accelerator, config):
 
     with accelerator.main_process_first():
         train_dataloader, problem_type, num_labels, class_weights = load_finetune_dataset(
-            config, tokenizer, split="train"
+            config, tokenizer, split="train", use_selfies=True if config["model_type"] == "electra" else False
         )
         val_dataloader, _, _, _, = load_finetune_dataset(
-            config, tokenizer, split="validation"
+            config, tokenizer, split="validation", use_selfies=True if config["model_type"] == "electra" else False
         )
 
     model_config = AutoConfig.from_pretrained(config["model_name"])
+    print(model_config)
     model_config.num_labels = num_labels
+    model_config.classifier_dropout = config["classifier_dropout"]
     if class_weights is not None:
         model_config.class_weights = list(class_weights)
-    model = ElectraForSequenceClassification.from_pretrained(
-        config["model_name"], config=model_config
-    )
 
+    if config["model_type"] == "electra":
+        model = ElectraForSequenceClassification.from_pretrained(
+            config["model_name"], config=model_config
+        )
+    elif config["model_type"] == "roberta":
+        if problem_type == "regression":
+            model_class = RobertaForRegression
+
+        elif problem_type == "classification":
+            model_class = RobertaForSequenceClassification
+        else:
+            raise ValueError(f"Unknown problem type: {problem_type}")
+
+        model = model_class.from_pretrained(config["model_name"], config=model_config)
+    elif config["model_type"] == "mtr":
+        # we have to prune the regression heads from the pretraining stage
+        pruned_state_dict = prune_state_dict(config["model_name"])
+        if problem_type == "regression":
+            model_class = RobertaForRegression
+
+        elif problem_type == "classification":
+            model_class = RobertaForSequenceClassification
+        else:
+            raise ValueError(f"Unknown problem type: {problem_type}")
+
+        model = model_class.from_pretrained(config["model_name"], config=model_config, state_dict=pruned_state_dict)
+        
+    else:
+        raise ValueError(f"Unknown model type: {config['model_type']}")
+
+    print(f"Model has {model.num_parameters():,} parameters")
     device = accelerator.device
     model.to(device)
 
