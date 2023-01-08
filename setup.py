@@ -19,7 +19,8 @@ requirements = [
     "wandb",
     "accelerate",
     "torchmetrics",
-    "deepspeed"
+    "deepspeed",
+    "selfies"
 ]
 
 test_requirements = [
