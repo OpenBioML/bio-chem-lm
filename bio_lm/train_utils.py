@@ -12,6 +12,10 @@ from bio_lm.model.electra.discriminator import ElectraForPreTraining
 from bio_lm.model.electra.electra import Electra
 from bio_lm.model.electra.generator import ElectraForMaskedLM
 
+from huggingface_hub import hf_hub_download
+from huggingface_hub.utils import RepositoryNotFoundError
+from collections import OrderedDict
+
 BASE = "model/configs/{model_type}/{size}"
 
 
@@ -177,3 +181,26 @@ def print_pred_replaced(tokens, tokenizer, pred_replaced, labels, idx):
     
 def standardize(inputs, mean, std):
     return {"target": (inputs["target"] - mean) / std}
+
+def prune_state_dict(model_dir):
+    """Remove problematic keys from state dictionary"""
+    if not (model_dir and os.path.exists(os.path.join(model_dir, "pytorch_model.bin"))):
+        try:
+            state_dict_path = hf_hub_download(model_dir, filename="pytorch_model.bin")
+        except RepositoryNotFoundError:
+            return None
+    else:
+        state_dict_path = os.path.join(model_dir, "pytorch_model.bin")
+    assert os.path.exists(
+        state_dict_path
+    ), f"No `pytorch_model.bin` file found in {model_dir}"
+    loaded_state_dict = torch.load(state_dict_path)
+    state_keys = loaded_state_dict.keys()
+    keys_to_remove = [
+        k for k in state_keys if k.startswith("regression") or k.startswith("norm")
+    ]
+
+    new_state_dict = OrderedDict({**loaded_state_dict})
+    for k in keys_to_remove:
+        del new_state_dict[k]
+    return new_state_dict
