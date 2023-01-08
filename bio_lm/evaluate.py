@@ -7,10 +7,11 @@ from accelerate.utils import set_seed
 from tqdm import tqdm
 from transformers import AutoConfig, AutoTokenizer
 
-from bio_lm.dataset import load_finetune_dataset, get_training_statistics
+from bio_lm.dataset import load_finetune_dataset 
 from bio_lm.metrics import (PROBLEM2METRICS, MetricDict, format_metrics,
                             name2metric)
-from bio_lm.model.classifier import ElectraForSequenceClassification
+from bio_lm.model.electra.classifier import ElectraForSequenceClassification
+from bio_lm.model.roberta.classifier import RobertaForSequenceClassification, RobertaForRegression
 from bio_lm.options import parse_args_evaluate
 
 
@@ -25,14 +26,29 @@ def evaluate(accelerator, config):
             problem_type,
             num_labels,
             class_weights,
-        ) = load_finetune_dataset(config, tokenizer, split="test")
+        ) = load_finetune_dataset(config, tokenizer, split="test", use_selfies=True if config["model_type"] == "electra" else False)
 
     model_config = AutoConfig.from_pretrained(config["model_name"])
     model_config.num_labels = num_labels
     model_config.class_weights = class_weights
-    model = ElectraForSequenceClassification.from_pretrained(
-        config["model_name"], config=model_config
-    )
+    if config["model_type"] == "electra":
+        model = ElectraForSequenceClassification.from_pretrained(
+            config["model_name"], config=model_config
+        )
+    elif config["model_type"] == "roberta" or config["model_type"] == "mtr":
+        if problem_type == "regression":
+            model_class = RobertaForRegression
+
+        elif problem_type == "classification":
+            model_class = RobertaForSequenceClassification
+        else:
+            raise ValueError(f"Unknown problem type: {problem_type}")
+
+        model = model_class.from_pretrained(config["model_name"], config=model_config)
+    else:
+        raise ValueError(f"Unknown model type: {config['model_type']}")
+
+    print(f"Model has {sum(p.numel() for p in model.parameters() if p.requires_grad):,} trainable parameters")
 
     device = accelerator.device
     model.to(device)
