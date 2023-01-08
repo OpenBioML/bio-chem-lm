@@ -16,15 +16,15 @@ def tokenize_selfies(examples, col_name="CAN_SELFIES"):
     return {"tokenized": tokenized_examples}
 
 
-def preprocess_fn(examples, tokenizer):
-    result = tokenizer(examples["tokenized"], padding="max_length", truncation=True)
+def preprocess_fn(examples, tokenizer, column="tokenized"):
+    result = tokenizer(examples[column], padding="max_length", truncation=True)
     return result
 
 
 if __name__ == "__main__":
     from datasets import load_dataset
 
-    dataset = load_dataset("zpn/pubchem_selfies")
+    dataset = load_dataset("zpn/zinc20")
 
     train_ds = dataset["train"]
 
