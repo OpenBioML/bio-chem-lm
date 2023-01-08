@@ -12,14 +12,14 @@ MAX_LENGTH = 512
 
 
 def train_tokenizer(
-    save_path, dataset_name, batch_size=1000, num_workers=mp.cpu_count()
+    save_path, dataset_name, batch_size=10_000, num_workers=mp.cpu_count()
 ):
-    dataset = load_dataset(dataset_name)
+    dataset = load_dataset(dataset_name, num_proc=num_workers)
 
     # only tokenize training data
     train_ds = dataset["train"]
 
-    train_ds = train_ds.map(tokenize_selfies, batched=True, num_proc=num_workers)
+    train_ds = train_ds.map(lambda x: tokenize_selfies(x, col_name="selfies"), batched=True, num_proc=num_workers)
 
     def batch_loader(batch_size=batch_size):
         for i in range(0, len(train_ds), batch_size):
@@ -48,8 +48,8 @@ def train_tokenizer(
 
 
 if __name__ == "__main__":
-    save_path = "tokenizer.json"
-    train_tokenizer(save_path, "zpn/pubchem_selfies")
+    save_path = "zinc20_tokenizer.json"
+    train_tokenizer(save_path, "zpn/zinc20")
 
     tokenizer = PreTrainedTokenizerFast(
         tokenizer_file=save_path,
@@ -61,4 +61,4 @@ if __name__ == "__main__":
         model_max_length=MAX_LENGTH,
     )
 
-    tokenizer.push_to_hub("zpn/pubchem_selfies_tokenizer_wordlevel_dissociation")
+    tokenizer.push_to_hub("zpn/zinc20_wordlevel_dissociation")
