@@ -86,8 +86,11 @@ def parse_args_finetune():
 
     # optimizer params
     parser.add_argument("--lr", type=float, default=1e-4)
+    parser.add_argument("--classifier_dropout", type=float, default=0.1)
     parser.add_argument("--train_batch_size", type=int, default=32)
     parser.add_argument("--validation_batch_size", type=int, default=32)
+    parser.add_argument("--test_batch_size", type=int, default=32)
+    parser.add_argument("--scheduler", action="store_true")
     
     # wandb args
     parser.add_argument("--wandb", action="store_true")
@@ -107,6 +110,7 @@ def parse_args_evaluate():
 
     # hf params
     parser.add_argument("--model_name", type=str, required=True)
+    parser.add_argument("--model_type", default="electra")
     parser.add_argument("--tokenizer_name", type=str, default="zpn/pubchem_selfies_tokenizer_wordlevel_dissociation")
     parser.add_argument("--dataset_name", type=str, required=True)
     parser.add_argument("--test_batch_size" , type=int, default=32)
