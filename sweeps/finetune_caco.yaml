@@ -1,0 +1,60 @@
+method: random
+program: finetune_admet.py
+project: "caco2"
+metric:
+  goal: minimize
+  name: test_mae_mean
+run_cap: 100
+name: caco_finetune
+parameters:
+  model_name:
+    value: "discriminator_19"
+
+  dataset_name:
+    value: "Caco2_Wang"
+
+  lr:
+    distribution: uniform
+    min: 9e-6
+    max: 1e-3
+
+
+  classifier_dropout:
+    values: [0, 0.1, 0.2]
+
+  train_batch_size:
+    values: [4, 8, 16, 32]
+
+  validation_batch_size:
+    value: 64
+
+  test_batch_size:
+    value: 64
+
+  global_clip_norm:
+    values: [0, 0.2, 0.5, 1]
+
+  metric_for_early_stopping:
+    value: mae
+
+  num_epochs:
+    values: [10, 20, 50, 100]
+
+  scheduler:
+    values: [false, true]
+
+  wandb:
+    value: true
+
+  wandb_project:
+    value: "caco2"
+
+  wandb_entity:
+    value: "zanussbaum"
+
+
+command:
+  - accelerate
+  - launch
+  - ${program}
+  - ${args_no_boolean_flags}

@@ -1,17 +1,23 @@
 method: random
 program: finetune.py
-project: "bio-chem-lm"
+project: "bace_class_chemberta_mlm"
 metric:
-  goal: minimize
-  name: val_rmse
+  goal: maximize
+  name: val_roc
 run_cap: 100
-name: bace_regression_finetune
+name: bace_classification_finetune
 parameters:
   model_name:
-    value: "discriminator_19"
+    value: "DeepChem/ChemBERTa-77M-MLM"
+
+  tokenizer_name:
+    value: "DeepChem/ChemBERTa-77M-MLM"
+
+  model_type:
+    value: "roberta"
 
   dataset_name:
-    value: "zpn/bace_regression"
+    value: "zpn/bace_classification"
 
   lr:
     distribution: uniform
@@ -33,7 +39,7 @@ parameters:
     values: [0, 0.2, 0.5, 1]
 
   metric_for_early_stopping:
-    value: rmse
+    value: roc
 
   num_epochs:
     values: [10, 20, 50, 100]
@@ -45,7 +51,7 @@ parameters:
     value: true
 
   wandb_project:
-    value: "bio-chem-lm"
+    value: "bace_class_chemberta_mlm"
 
   wandb_entity:
     value: "zanussbaum"
