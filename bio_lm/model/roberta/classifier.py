@@ -118,7 +118,7 @@ class RobertaForSequenceClassification(RobertaPreTrainedModel):
                 loss_fct = MSELoss()
                 loss = loss_fct(logits.view(-1), target.view(-1))
             else:
-                loss_fct = CrossEntropyLoss()
+                loss_fct = CrossEntropyLoss(weight=torch.Tensor(self.config.class_weights).to(target.device).type(torch.float32))
                 loss = loss_fct(
                     logits.view(-1, self.num_labels), target.long().view(-1)
                 )
@@ -141,6 +141,15 @@ class RobertaForRegression(RobertaPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
         self.num_labels = config.num_labels
+
+        self.register_buffer("norm_mean", torch.tensor(config.norm_mean))
+        # Replace any 0 stddev norms with 1
+        self.register_buffer(
+            "norm_std",
+            torch.tensor(
+                [label_std if label_std != 0 else 1 for label_std in config.norm_std]
+            ),
+        )
 
         self.roberta = RobertaModel(config, add_pooling_layer=False)
         self.regression = RobertaRegressionHead(config)
