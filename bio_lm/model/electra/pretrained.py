@@ -5,6 +5,7 @@ from transformers.modeling_utils import PreTrainedModel
 from transformers.models.electra import load_tf_weights_in_electra
 
 from bio_lm.model.electra.attention import ElectraSelfAttention
+from bio_lm.model.deberta.attention import DisentangledSelfAttention
 from bio_lm.model.electra.config import ElectraConfig
 
 
@@ -56,3 +57,7 @@ class ElectraPreTrainedModel(PreTrainedModel):
         if isinstance(module, ElectraSelfAttention):
             if query_zero_init:
                 module.query.weight.data[:] = 0
+
+        if isinstance(module, DisentangledSelfAttention):
+            if query_zero_init:
+                module.query_proj.weight.data[:] = 0
