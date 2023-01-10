@@ -20,7 +20,8 @@ requirements = [
     "accelerate",
     "torchmetrics",
     "deepspeed",
-    "selfies"
+    "selfies",
+    "scikit-learn"
 ]
 
 test_requirements = [
