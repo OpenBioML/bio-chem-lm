@@ -106,9 +106,12 @@ class DebertaV2Config(PretrainedConfig):
         max_relative_positions=-1,
         pad_token_id=0,
         position_biased_input=True,
-        pos_att_type=None,
+        pos_att_type=["p2c", "c2p"],
         pooler_dropout=0,
         pooler_hidden_act="gelu",
+        mup=False,
+        output_mult=1,
+        readout_zero_init=False,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -135,7 +138,13 @@ class DebertaV2Config(PretrainedConfig):
         self.pos_att_type = pos_att_type
         self.vocab_size = vocab_size
         self.layer_norm_eps = layer_norm_eps
+        # passing in 1e-x in config turns to string
+        if isinstance(self.layer_norm_eps, str):
+            self.layer_norm_eps = float(self.layer_norm_eps)
 
         self.pooler_hidden_size = kwargs.get("pooler_hidden_size", hidden_size)
         self.pooler_dropout = pooler_dropout
         self.pooler_hidden_act = pooler_hidden_act
+        self.mup = mup
+        self.output_mult = output_mult
+        self.readout_zero_init = readout_zero_init
