@@ -7,7 +7,7 @@ from collections.abc import Sequence
 
 from bio_lm.model.deberta.attention import DebertaV2Attention
 from bio_lm.model.deberta.rpe import build_relative_position
-from bio_lm.model.deberta import StableDropout
+from bio_lm.model.deberta.dropout import StableDropout
 
 
 # Copied from transformers.models.bert.modeling_bert.BertIntermediate with Bert->DebertaV2
