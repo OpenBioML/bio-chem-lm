@@ -12,6 +12,7 @@ def parse_args():
     parser.add_argument("--mask_prob", type=float, default=0.15)
 
     # model params
+    parser.add_argument("--arch_name", type=str, default="electra")
     parser.add_argument("--base_config_size", type=str, default="tiny.yaml", help="Default base size for when creating shapes file")
     parser.add_argument("--generator_config", type=str, default="model/configs/generator/tiny.yaml")
     parser.add_argument("--discriminator_config", type=str, default="model/configs/discriminator/tiny.yaml")
