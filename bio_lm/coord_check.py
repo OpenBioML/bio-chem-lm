@@ -8,20 +8,25 @@ import torch
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, DataCollatorForLanguageModeling
 
-from bio_lm.model.config import ElectraConfig
-from bio_lm.model.discriminator import ElectraForPreTraining
-from bio_lm.model.generator import ElectraForMaskedLM
-from bio_lm.model.electra import Electra
+from bio_lm.model.deberta.config import DebertaV2Config
+from bio_lm.model.deberta.discriminator import DebertaV2ForPreTraining
+from bio_lm.model.deberta.generator import DebertaV2ForMaskedLM
+
+from bio_lm.model.electra.config import ElectraConfig
+from bio_lm.model.electra.discriminator import ElectraForPreTraining
+from bio_lm.model.electra.generator import ElectraForMaskedLM
+from bio_lm.model.electra.electra import Electra
 from bio_lm.options import parse_args
 from bio_lm.preprocessing.tokenization import preprocess_fn, tokenize_selfies
 from bio_lm.train_utils import load_config, tie_weights
 
 
-BASE = "model/configs/{model_type}/{size}"
+BASE = "model/configs/{arch_name}/{model_type}/{size}"
 
 
-def create_electra(
+def create_model(
     model_config,
+    arch_name,
     base_model_config,
     pad_id,
     vocab_size,
@@ -32,21 +37,25 @@ def create_electra(
 ):
     def gen(size, base_size):
         def f():
+            config_base_class = ElectraConfig if arch_name == "electra" else DebertaV2Config
+            disc_base_class = ElectraForPreTraining if arch_name == "electra" else DebertaV2ForPreTraining 
+            gen_base_class = ElectraForMaskedLM if arch_name == "electra" else DebertaV2ForMaskedLM 
             disc_config = load_config(
-                BASE.format(model_type="discriminator", size=size)
+                BASE.format(arch_name=arch_name, model_type="discriminator", size=size)
             )
             disc_config["mup"] = mup
             disc_config["vocab_size"] = vocab_size
-            disc_model_config = ElectraConfig(**disc_config)
-            discriminator = ElectraForPreTraining(disc_model_config)
+            disc_model_config = config_base_class(**disc_config)
+            discriminator = disc_base_class(disc_model_config)
 
-            gen_config = load_config(BASE.format(model_type="generator", size=size))
+            gen_config = load_config(BASE.format(arch_name=arch_name, model_type="generator", size=size))
             gen_config["mup"] = mup
             gen_config["vocab_size"] = vocab_size
-            gen_model_config = ElectraConfig(**gen_config)
-            generator = ElectraForMaskedLM(gen_model_config)
+            gen_model_config = config_base_class(**gen_config)
+            generator = gen_base_class(gen_model_config)
 
-            tie_weights(generator, discriminator)
+            if config["arch_name"] == "electra":
+                tie_weights(generator, discriminator)
 
             electra = Electra(
                 discriminator=discriminator,
@@ -60,22 +69,23 @@ def create_electra(
                 set_base_shapes(electra, None)
             else:
                 base_disc_config = load_config(
-                    BASE.format(model_type="discriminator", size=base_size)
+                    BASE.format(arch_name=arch_name, model_type="discriminator", size=base_size)
                 )
                 base_disc_config["mup"] = mup
                 base_disc_config["vocab_size"] = vocab_size
-                base_disc_model_config = ElectraConfig(**base_disc_config)
-                base_discriminator = ElectraForPreTraining(base_disc_model_config)
+                base_disc_model_config = config_base_class(**base_disc_config)
+                base_discriminator = disc_base_class(base_disc_model_config)
 
                 base_gen_config = load_config(
-                    BASE.format(model_type="generator", size=base_size)
+                    BASE.format(arch_name=arch_name, model_type="generator", size=base_size)
                 )
                 base_gen_config["mup"] = mup
                 base_gen_config["vocab_size"] = vocab_size
-                base_gen_model_config = ElectraConfig(**base_gen_config)
-                base_generator = ElectraForMaskedLM(base_gen_model_config)
+                base_gen_model_config = config_base_class(**base_gen_config)
+                base_generator = gen_base_class(base_gen_model_config)
 
-                tie_weights(base_generator, base_discriminator)
+                if config["arch_name"] == "electra":
+                    tie_weights(base_generator, base_discriminator)
 
                 base_electra = Electra(
                     discriminator=base_discriminator,
@@ -102,16 +112,18 @@ def create_electra(
     return gen(size=model_config, base_size=base_model_config)
 
 
-def lazy_model(base_config, model_configs, pad_id, vocab_size, mask_id, mup=False):
+def lazy_model(base_config, model_configs, arch_name, pad_id, vocab_size, mask_id, query_zero_init=False, mup=False):
     r = [128, 1024, 2048, 3072]
     return {
-        val: create_electra(
+        val: create_model(
             model_config=c,
+            arch_name=arch_name,
             base_model_config=base_config,
             mup=mup,
             pad_id=pad_id,
             vocab_size=vocab_size,
             mask_id=mask_id,
+            query_zero_init=query_zero_init
         )
         for val, c in zip(r, model_configs)
     }
@@ -121,21 +133,23 @@ def plot_coords(config):
     tokenizer = AutoTokenizer.from_pretrained(config["tokenizer_name"])
 
     dataset = load_dataset(config["dataset_name"], split="train", streaming=True)
-    dataset = dataset.map(tokenize_selfies, batched=True, batch_size=100)
-    dataset = dataset.map(
-        lambda x: preprocess_fn(x, tokenizer),
-        batched=True,
-        remove_columns=[
+    col_name = "CAN_SELFIES" if config["dataset_name"] == "zpn/pubchem_selfies" else "selfies"
+    remove_cols = [
             "PUBCHEM_COMPOUND_CID",
             "CAN_SELFIES",
             "PUBCHEM_OPENEYE_CAN_SMILES",
             "tokenized",
-        ],
+        ] if config["dataset_name"] == "zpn/pubchem_selfies" else ["selfies", "tokenized", "smiles", "id"]
+    dataset = dataset.map(lambda x: tokenize_selfies(x, col_name=col_name), batched=True, batch_size=100)
+    dataset = dataset.map(
+        lambda x: preprocess_fn(x, tokenizer),
+        batched=True,
+        remove_columns=remove_cols
     )
     dataset = dataset.with_format("torch")
 
     dataloader = DataLoader(
-        dataset, collate_fn=DataCollatorForLanguageModeling(tokenizer, mlm=False)
+        dataset, collate_fn=DataCollatorForLanguageModeling(tokenizer, mlm=False, mlm_probability=0)
     )
 
     mup = config["mup"]
@@ -156,10 +170,12 @@ def plot_coords(config):
     models = lazy_model(
         base_config=base_config,
         model_configs=configs,
+        arch_name=config["arch_name"],
         mup=mup,
         pad_id=tokenizer.pad_token_id,
         mask_id=tokenizer.mask_token_id,
         vocab_size=tokenizer.vocab_size,
+        query_zero_init=config["query_zero_init"],
     )
 
     df = get_coord_data(
@@ -174,6 +190,7 @@ def plot_coords(config):
         dict_in_out=True,
         output_name="loss",
         cuda=torch.cuda.is_available(),
+        filter_trainable_by_name=lambda x: True if ":out[" not in x and x != "" else False
     )
 
     prm = "μP" if mup else "SP"
@@ -187,8 +204,8 @@ def plot_coords(config):
     plot_coord_data(
         df,
         legend="auto",
-        save_to=f"{config['output_dir']}/{prm.lower()}_electra_model_{optimizer}_lr{lr}_nseeds{nseeds}_coord.jpg",
-        suptitle=f"{prm} electra model {optimizer} lr={lr} nseeds={nseeds}",
+        save_to=f"{config['output_dir']}/{prm.lower()}_{config['arch_name']}_model_{optimizer}_lr{lr}_nseeds{nseeds}_coord.jpg",
+        suptitle=f"{prm} {config['arch_name']} model {optimizer} lr={lr} nseeds={nseeds}",
         face_color="xkcd:light grey" if not mup else None,
         name_not_contains="out[",
         name_contains="generator",
