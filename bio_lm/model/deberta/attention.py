@@ -1,3 +1,4 @@
+import math
 import torch
 import torch.nn as nn 
 from torch.nn import LayerNorm
@@ -56,6 +57,11 @@ class DisentangledSelfAttention(nn.Module):
 
         self.dropout = StableDropout(config.attention_probs_dropout_prob)
 
+        if config.mup:
+            self.attention_scaling_factor = self.attention_head_size
+        else:
+            self.attention_scaling_factor = math.sqrt(self.attention_head_size)
+
     def transpose_for_scores(self, x, attention_heads):
         new_x_shape = x.size()[:-1] + (attention_heads, -1)
         x = x.view(new_x_shape)
@@ -112,8 +118,7 @@ class DisentangledSelfAttention(nn.Module):
             scale_factor += 1
         if "p2c" in self.pos_att_type:
             scale_factor += 1
-        scale = torch.sqrt(torch.tensor(query_layer.size(-1), dtype=torch.float) * scale_factor)
-        attention_scores = torch.bmm(query_layer, key_layer.transpose(-1, -2)) / scale.to(dtype=query_layer.dtype)
+        attention_scores = torch.bmm(query_layer, key_layer.transpose(-1, -2)) / (self.attention_scaling_factor * scale_factor)
         if self.relative_attention:
             rel_embeddings = self.pos_dropout(rel_embeddings)
             rel_att = self.disentangled_attention_bias(
@@ -191,7 +196,7 @@ class DisentangledSelfAttention(nn.Module):
         score = 0
         # content->position
         if "c2p" in self.pos_att_type:
-            scale = torch.sqrt(torch.tensor(pos_key_layer.size(-1), dtype=torch.float) * scale_factor)
+            scale = self.attention_scaling_factor * scale_factor
             c2p_att = torch.bmm(query_layer, pos_key_layer.transpose(-1, -2))
             c2p_pos = torch.clamp(relative_pos + att_span, 0, att_span * 2 - 1)
             c2p_att = torch.gather(
@@ -203,7 +208,7 @@ class DisentangledSelfAttention(nn.Module):
 
         # position->content
         if "p2c" in self.pos_att_type:
-            scale = torch.sqrt(torch.tensor(pos_query_layer.size(-1), dtype=torch.float) * scale_factor)
+            scale =  self.attention_scaling_factor
             if key_layer.size(-2) != query_layer.size(-2):
                 r_pos = build_relative_position(
                     key_layer.size(-2),
