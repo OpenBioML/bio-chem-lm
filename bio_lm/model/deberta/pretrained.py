@@ -21,7 +21,6 @@ class DebertaV2PreTrainedModel(PreTrainedModel):
 
     def _init_weights(self, module, readout_zero_init=False, query_zero_init=False):
         """Initialize the weights"""
-        print("deberta init")
         if isinstance(module, nn.Linear):
             # Slightly different from the TF version which uses truncated_normal for initialization
             # cf https://github.com/pytorch/pytorch/pull/5617
