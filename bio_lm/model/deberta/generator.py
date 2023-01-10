@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from mup import MuReadout
 from torch.nn import CrossEntropyLoss
 from transformers.modeling_utils import get_activation
 from transformers.modeling_outputs import MaskedLMOutput
@@ -14,12 +15,12 @@ from bio_lm.model.deberta.base_model import DebertaV2Model
 class DebertaV2PredictionHeadTransform(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        self.dense = nn.Linear(config.hidden_size, config.embedding_size)
         if isinstance(config.hidden_act, str):
             self.transform_act_fn = get_activation(config.hidden_act)
         else:
             self.transform_act_fn = config.hidden_act
-        self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.LayerNorm = nn.LayerNorm(config.embedding_size, eps=config.layer_norm_eps)
 
     def forward(self, hidden_states):
         hidden_states = self.dense(hidden_states)
@@ -36,12 +37,19 @@ class DebertaV2LMPredictionHead(nn.Module):
 
         # The output weights are the same as the input embeddings, but there is
         # an output-only bias for each token.
-        self.decoder = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
-
+        if config.mup:
+            self.decoder = MuReadout(
+                config.embedding_size, config.vocab_size, output_mult=config.output_mult,
+                readout_zero_init=config.readout_zero_init, bias=False,
+            )
+        else:
+            self.decoder = nn.Linear(config.embedding_size, config.vocab_size, bias=False)
+        
         self.bias = nn.Parameter(torch.zeros(config.vocab_size))
 
         # Need a link between the two variables so that the bias is correctly resized with `resize_token_embeddings`
         self.decoder.bias = self.bias
+        self.config = config
 
     def forward(self, hidden_states):
         hidden_states = self.transform(hidden_states)
@@ -68,16 +76,16 @@ class DebertaV2ForMaskedLM(DebertaV2PreTrainedModel):
         super().__init__(config)
 
         self.deberta = DebertaV2Model(config)
-        self.cls = DebertaV2OnlyMLMHead(config)
+        self.head = DebertaV2OnlyMLMHead(config)
 
         # Initialize weights and apply final processing
         self.post_init()
 
     def get_output_embeddings(self):
-        return self.cls.predictions.decoder
+        return self.head.predictions.decoder
 
     def set_output_embeddings(self, new_embeddings):
-        self.cls.predictions.decoder = new_embeddings
+        self.head.predictions.decoder = new_embeddings
 
     def forward(
         self,
@@ -112,7 +120,7 @@ class DebertaV2ForMaskedLM(DebertaV2PreTrainedModel):
         )
 
         sequence_output = outputs[0]
-        prediction_scores = self.cls(sequence_output)
+        prediction_scores = self.head(sequence_output)
 
         masked_lm_loss = None
         if labels is not None:
