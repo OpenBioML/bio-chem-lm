@@ -109,6 +109,10 @@ class DebertaV2Config(PretrainedConfig):
         pos_att_type=["p2c", "c2p"],
         pooler_dropout=0,
         pooler_hidden_act="gelu",
+        embedding_norm_layer_type="layer_norm",
+        embedding_num_groups=1,
+        attn_norm_layer_type="layer_norm",
+        attn_num_groups=1,
         mup=False,
         output_mult=1,
         readout_zero_init=False,
@@ -148,3 +152,8 @@ class DebertaV2Config(PretrainedConfig):
         self.mup = mup
         self.output_mult = output_mult
         self.readout_zero_init = readout_zero_init
+
+        self.embedding_norm_layer_type = embedding_norm_layer_type
+        self.embedding_num_groups = embedding_num_groups
+        self.attn_norm_layer_type = attn_norm_layer_type
+        self.attn_num_groups = attn_num_groups

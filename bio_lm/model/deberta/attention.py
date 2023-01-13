@@ -237,13 +237,28 @@ class DebertaV2SelfOutput(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        self.LayerNorm = LayerNorm(config.hidden_size, config.layer_norm_eps)
+        if config.prenorm:
+            self.norm = nn.Identity()
+        else:
+            if config.attn_norm_layer_type == "layer_norm":
+                self.norm = nn.LayerNorm(config.hidden_size)
+            elif config.attn_norm_layer_type == "group_norm":
+                self.norm = nn.GroupNorm(num_groups=config.attn_num_groups, num_channels=config.hidden_size)
+            else:
+                raise ValueError(f"Unknown attn_norm_layer_type {config.attn_norm_layer_type}")
         self.dropout = StableDropout(config.hidden_dropout_prob)
 
     def forward(self, hidden_states, input_tensor):
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
-        hidden_states = self.LayerNorm(hidden_states + input_tensor)
+        if isinstance(self.norm, nn.GroupNorm):
+            skip = (hidden_states + input_tensor)
+            # group norm only works over channel dim
+            skip = skip.permute(0, 2, 1)
+            hidden_states = self.norm(skip)
+            hidden_states = hidden_states.permute(0, 2, 1)
+        else:
+            hidden_states = self.norm(hidden_states + input_tensor)
         return hidden_states
 
 
@@ -253,6 +268,15 @@ class DebertaV2Attention(nn.Module):
         super().__init__()
         self.self = DisentangledSelfAttention(config)
         self.output = DebertaV2SelfOutput(config)
+        if config.prenorm:
+            if config.attn_norm_layer_type == "layer_norm":
+                self.prenorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps) 
+            elif config.attn_norm_layer_type == "group_norm":
+                self.prenorm = nn.GroupNorm(num_groups=config.attn_num_groups, num_channels=config.hidden_size, eps=config.layer_norm_eps)
+            else:
+                raise ValueError(f"Unknown attn_norm_layer_type {config.attn_norm_layer_type}")
+        else:
+            self.prenorm = nn.Identity()
         self.config = config
 
     def forward(
@@ -264,6 +288,14 @@ class DebertaV2Attention(nn.Module):
         relative_pos=None,
         rel_embeddings=None,
     ):
+        if isinstance(self.prenorm, nn.GroupNorm):
+                # group norm only works over channel dim
+                reshaped = hidden_states.permute(0, 2, 1)
+                hidden_states = self.prenorm(reshaped)
+                hidden_states = hidden_states.permute(0, 2, 1)
+        else:
+            hidden_states = self.prenorm(hidden_states)
+
         self_output = self.self(
             hidden_states,
             attention_mask,

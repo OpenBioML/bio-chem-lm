@@ -26,7 +26,13 @@ class DebertaV2Embeddings(nn.Module):
 
         if self.embedding_size != config.hidden_size:
             self.embed_proj = nn.Linear(self.embedding_size, config.hidden_size, bias=False)
-        self.LayerNorm = LayerNorm(config.hidden_size, config.layer_norm_eps)
+
+        if config.embedding_norm_layer_type == "layer_norm":
+            self.norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        elif config.embedding_norm_layer_type == "group_norm":
+            self.norm = nn.GroupNorm(num_groups=config.embedding_num_groups, num_channels=config.hidden_size)
+        else:
+            raise ValueError(f"Unknown attn_norm_layer_type {config.attn_norm_layer_type}")
         self.dropout = StableDropout(config.hidden_dropout_prob)
         self.config = config
 
@@ -65,7 +71,13 @@ class DebertaV2Embeddings(nn.Module):
         if self.embedding_size != self.config.hidden_size:
             embeddings = self.embed_proj(embeddings)
 
-        embeddings = self.LayerNorm(embeddings)
+        if isinstance(self.norm, nn.GroupNorm):
+            # group norm only works over channel dim
+            reshaped = embeddings.permute(0, 2, 1)
+            embeddings = self.norm(reshaped)
+            embeddings = embeddings.permute(0, 2, 1)
+        else:
+            embeddings = self.norm(embeddings)
 
         if mask is not None:
             if mask.dim() != embeddings.dim():
