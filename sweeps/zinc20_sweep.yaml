@@ -1,22 +1,25 @@
 method: random
 program: train.py
-project: "zinc20_sweep"
-run_cap: 250
+project: "zinc20-electra"
 metric:
   goal: minimize
   name: val_loss
+run_cap: 500
 parameters:
+  dataset_name:
+    value: "zpn/zinc20"
+
+  tokenizer_name:
+    value: "zpn/zinc20_wordlevel_dissociation"
+
   generator_config:
-    value: "model/configs/generator/tiny.yaml"
+    value: "model/configs/deberta/generator/tiny.yaml"
 
   discriminator_config:
-    value: "model/configs/discriminator/tiny.yaml"
+    value: "model/configs/deberta/discriminator/tiny.yaml"
 
   base_config_size:
     value: "tiny.yaml"
-
-  position_embedding_type:
-    values: ["absolute", "relative_key", "relative_key_query", "rotary", "alibi"]
 
   output_mult:
     values: [1, 8, 64, 256, 512, 1024]
@@ -34,7 +37,7 @@ parameters:
     values: ["layer_norm", "group_norm"]
 
   embedding_num_groups:
-    values: [1, 2, 4, 8, 16]
+    values: [1, 2, 4, 8]
 
   mup:
     value: true
@@ -43,7 +46,7 @@ parameters:
     value: true
 
   query_zero_init:
-    values: [false, true]
+    value: true
 
   lr:
     distribution: uniform
@@ -77,11 +80,14 @@ parameters:
   global_clip_norm:
     values: [0, 0.2, 0.5, 1]
 
+  arch_name:
+    value: deberta
+
   wandb:
     value: true
 
   wandb_project:
-    value: "zinc20_sweep"
+    value: "zinc20-electra"
 
   wandb_entity:
     value: "zanussbaum"
