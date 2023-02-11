@@ -12,10 +12,8 @@ from bio_lm.model.deberta.config import DebertaV2Config
 from bio_lm.model.deberta.discriminator import DebertaV2ForPreTraining
 from bio_lm.model.deberta.generator import DebertaV2ForMaskedLM
 
-from bio_lm.model.electra.config import ElectraConfig
-from bio_lm.model.electra.discriminator import ElectraForPreTraining
-from bio_lm.model.electra.generator import ElectraForMaskedLM
-from bio_lm.model.electra.electra import Electra
+from bio_lm.model.electra.configuring_electra import ElectraConfig
+from bio_lm.model.electra.modeling_electra import ElectraForPreTraining, ElectraForMaskedLM, Electra
 from bio_lm.options import parse_args
 from bio_lm.preprocessing.tokenization import preprocess_fn, tokenize_selfies
 from bio_lm.train_utils import load_config, tie_weights
