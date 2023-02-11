@@ -11,12 +11,15 @@ from bio_lm.model.electra.config import ElectraConfig
 from bio_lm.model.electra.discriminator import ElectraForPreTraining
 from bio_lm.model.electra.electra import Electra
 from bio_lm.model.electra.generator import ElectraForMaskedLM
+from bio_lm.model.deberta.discriminator import DebertaV2ForPreTraining
+from bio_lm.model.deberta.config import DebertaV2Config
+from bio_lm.model.deberta.generator import DebertaV2ForMaskedLM
 
 from huggingface_hub import hf_hub_download
 from huggingface_hub.utils import RepositoryNotFoundError
 from collections import OrderedDict
 
-BASE = "model/configs/{model_type}/{size}"
+BASE = "model/configs/{arch_name}/{model_type}/{size}"
 
 
 ENDC = "\033[0m"
@@ -39,8 +42,12 @@ def load_config(file):
     return config
 
 
-def make_shapes(base_size, delta_size, config, vocab_size, pad_id, mask_id, save_dir):
-    disc_config = load_config(BASE.format(model_type="discriminator", size=delta_size))
+def make_shapes(base_size, delta_size, config, vocab_size, arch_name, pad_id, mask_id, save_dir):
+    config_base_class = ElectraConfig if arch_name == "electra" else DebertaV2Config
+    disc_base_class = ElectraForPreTraining if arch_name == "electra" else DebertaV2ForPreTraining 
+    gen_base_class = ElectraForMaskedLM if arch_name == "electra" else DebertaV2ForMaskedLM 
+
+    disc_config = load_config(BASE.format(arch_name=arch_name, model_type="discriminator", size=delta_size))
     disc_config["mup"] = True
     disc_config["vocab_size"] = vocab_size
 
@@ -48,10 +55,10 @@ def make_shapes(base_size, delta_size, config, vocab_size, pad_id, mask_id, save
         if key in config:
             disc_config[key] = config[key]
 
-    disc_model_config = ElectraConfig(**disc_config)
-    discriminator = ElectraForPreTraining(disc_model_config)
+    disc_model_config = config_base_class(**disc_config)
+    discriminator = disc_base_class(disc_model_config)
 
-    gen_config = load_config(BASE.format(model_type="generator", size=delta_size))
+    gen_config = load_config(BASE.format(arch_name=arch_name, model_type="generator", size=delta_size))
     gen_config["mup"] = True
     gen_config["vocab_size"] = vocab_size
 
@@ -59,10 +66,11 @@ def make_shapes(base_size, delta_size, config, vocab_size, pad_id, mask_id, save
         if key in config:
             gen_config[key] = config[key]
 
-    gen_model_config = ElectraConfig(**gen_config)
-    generator = ElectraForMaskedLM(gen_model_config)
+    gen_model_config = config_base_class(**gen_config)
+    generator = gen_base_class(gen_model_config)
 
-    tie_weights(generator, discriminator)
+    if arch_name == "electra":
+        tie_weights(generator, discriminator)
 
     delta_electra = Electra(
         discriminator=discriminator,
@@ -73,7 +81,7 @@ def make_shapes(base_size, delta_size, config, vocab_size, pad_id, mask_id, save
     )
 
     base_disc_config = load_config(
-        BASE.format(model_type="discriminator", size=base_size)
+        BASE.format(arch_name=arch_name, model_type="discriminator", size=base_size)
     )
 
     for key in base_disc_config:
@@ -83,10 +91,10 @@ def make_shapes(base_size, delta_size, config, vocab_size, pad_id, mask_id, save
     base_disc_config["mup"] = True
     base_disc_config["vocab_size"] = vocab_size
 
-    base_disc_model_config = ElectraConfig(**base_disc_config)
-    base_discriminator = ElectraForPreTraining(base_disc_model_config)
+    base_disc_model_config = config_base_class(**base_disc_config)
+    base_discriminator = disc_base_class(base_disc_model_config)
 
-    base_gen_config = load_config(BASE.format(model_type="generator", size=base_size))
+    base_gen_config = load_config(BASE.format(arch_name=arch_name, model_type="generator", size=base_size))
     for key in base_gen_config:
         if key in config:
             base_gen_config[key] = config[key]
@@ -94,10 +102,11 @@ def make_shapes(base_size, delta_size, config, vocab_size, pad_id, mask_id, save
     base_gen_config["mup"] = True
     base_gen_config["vocab_size"] = vocab_size
 
-    base_gen_model_config = ElectraConfig(**base_gen_config)
-    base_generator = ElectraForMaskedLM(base_gen_model_config)
+    base_gen_model_config = config_base_class(**base_gen_config)
+    base_generator = gen_base_class(base_gen_model_config)
 
-    tie_weights(base_generator, base_discriminator)
+    if arch_name == "electra":
+        tie_weights(base_generator, base_discriminator)
 
     base_electra = Electra(
         discriminator=base_discriminator,
