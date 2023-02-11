@@ -21,7 +21,8 @@ requirements = [
     "torchmetrics",
     "deepspeed",
     "selfies",
-    "scikit-learn"
+    "scikit-learn",
+    "nodelist-inflator",
 ]
 
 test_requirements = [
