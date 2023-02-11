@@ -2,6 +2,7 @@
 **jsonl**
 **.pt**
 hostfile
+hostnames
 .DS_Store
 *.json
 **wandb**
