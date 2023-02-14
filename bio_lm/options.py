@@ -10,12 +10,13 @@ def parse_args():
     parser.add_argument("--dataset_name", type=str, default="zpn/pubchem_selfies")
     parser.add_argument("--tokenizer_name", type=str, default="zpn/pubchem_selfies_tokenizer_wordlevel_dissociation")
     parser.add_argument("--mask_prob", type=float, default=0.15)
+    parser.add_argument("--max_seq_length", default=1024)
 
     # model params
     parser.add_argument("--arch_name", type=str, default="electra")
     parser.add_argument("--base_config_size", type=str, default="tiny.yaml", help="Default base size for when creating shapes file")
-    parser.add_argument("--generator_config", type=str, default="model/configs/generator/tiny.yaml")
-    parser.add_argument("--discriminator_config", type=str, default="model/configs/discriminator/tiny.yaml")
+    parser.add_argument("--generator_config", type=str, default="model/configs/electra/generator/tiny.yaml")
+    parser.add_argument("--discriminator_config", type=str, default="model/configs/electra/discriminator/tiny.yaml")
     parser.add_argument("--position_embedding_type", type=str, default="absolute")
     parser.add_argument("--output_mult", type=int, default=1)
     parser.add_argument("--prenorm", action="store_true")
@@ -34,8 +35,7 @@ def parse_args():
 
     # optimizer params
     parser.add_argument("--lr", type=float, default=1e-4)
-    parser.add_argument("--train_batch_size", type=int, default=32)
-    parser.add_argument("--validation_batch_size", type=int, default=32)
+    parser.add_argument("--batch_size", type=int, default=32)
 
     # training params
     parser.add_argument("--num_epochs", type=int, default=10)
