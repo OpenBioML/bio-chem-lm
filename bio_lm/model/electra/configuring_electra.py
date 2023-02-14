@@ -94,6 +94,15 @@ class ElectraConfig(PretrainedConfig):
 
     def __init__(
         self,
+        discriminator_config=None,
+        generator_config=None,
+        mask_prob=0.15,
+        mask_token_id=2,
+        pad_token_id=0,
+        mask_ignore_token_ids=[],
+        disc_weight=50.0,
+        gen_weight=1.0,
+        temperature=1.0, 
         vocab_size=30522,
         embedding_size=128,
         hidden_size=256,
@@ -111,11 +120,13 @@ class ElectraConfig(PretrainedConfig):
         summary_use_proj=True,
         summary_activation="gelu",
         summary_last_dropout=0.1,
-        pad_token_id=0,
         position_embedding_type="absolute",
         classifier_dropout=None,
         prenorm=False,
         mup=False,
+        base_config_size="tiny.yaml",
+        delta_size="small.yaml",
+        base_shapes_dir=None,
         embedding_norm_layer_type="layer_norm",
         embedding_num_groups=1,
         attn_norm_layer_type="layer_norm",
@@ -126,6 +137,15 @@ class ElectraConfig(PretrainedConfig):
     ):
         super().__init__(pad_token_id=pad_token_id, **kwargs)
 
+        self.disc_config = discriminator_config
+        self.gen_config = generator_config
+        self.mask_prob = mask_prob
+        self.mask_token_id = mask_token_id
+        self.pad_token_id = pad_token_id
+        self.mask_ignore_token_ids = mask_ignore_token_ids
+        self.disc_weight = disc_weight
+        self.gen_weight = gen_weight
+        self.temperature = temperature
         self.vocab_size = vocab_size
         self.embedding_size = embedding_size
         self.hidden_size = hidden_size
@@ -152,6 +172,10 @@ class ElectraConfig(PretrainedConfig):
         # transformers without tears suggests using prenorm
         self.prenorm = prenorm
         self.mup = mup
+        self.base_config_size = base_config_size
+        self.delta_size = delta_size
+        self.base_shapes_dir = base_shapes_dir
+
         self.embedding_norm_layer_type = embedding_norm_layer_type
         self.embedding_num_groups = embedding_num_groups
         self.attn_norm_layer_type = attn_norm_layer_type

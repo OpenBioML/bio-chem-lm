@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from bio_lm.model.electra.configuring_electra import ElectraConfig
+from bio_lm.load import load_config
 from einops import rearrange
 from mup import MuReadout
 from mup.init import normal_
@@ -37,6 +38,8 @@ Results = namedtuple(
         "disc_labels",
         "disc_predictions",
         "masked_input",
+        "disc_logits",
+        "gen_logits"
     ],
 )
 
@@ -1126,50 +1129,61 @@ class HiddenLayerExtractor(nn.Module):
 class Electra(ElectraPreTrainedModel):
     def __init__(
         self,
-        generator,
-        discriminator,
-        *,
-        config=None,
-        num_tokens=None,
-        discr_dim=-1,
-        discr_layer=-1,
-        mask_prob=0.15,
-        mask_token_id=2,
-        pad_token_id=0,
-        mask_ignore_token_ids=[],
-        disc_weight=50.0,
-        gen_weight=1.0,
-        temperature=1.0,
+        config
     ):
         super().__init__(config=config)
 
-        self.generator = generator
-        self.discriminator = discriminator
+        if config.mup:
+            raise NotImplementedError()
 
-        if discr_dim > 0:
-            self.discriminator = nn.Sequential(
-                HiddenLayerExtractor(discriminator, layer=discr_layer),
-                nn.Linear(discr_dim, 1),
-            )
+        disc_config = load_config(config.disc_config)
+        disc_config["max_position_embeddings"] = config.max_position_embeddings
+        disc_config["vocab_size"] = config.vocab_size
+        disc_config["pad_token_id"] = config.pad_token_id
+
+        discriminator_config = ElectraConfig(**disc_config)
+        self.discriminator = ElectraForPreTraining(discriminator_config)
+
+        gen_config = load_config(config.gen_config)
+        gen_config["max_position_embeddings"] = config.max_position_embeddings
+        gen_config["vocab_size"] = config.vocab_size
+        gen_config["pad_token_id"] = config.pad_token_id
+
+
+        generator_config = ElectraConfig(**gen_config)
+        self.generator = ElectraForMaskedLM(generator_config)
+
+        self.tie_weights()
 
         # mlm related probabilities
-        self.mask_prob = mask_prob
-
-        self.num_tokens = num_tokens
+        self.mask_prob = config.mask_prob
 
         # token ids
-        self.pad_token_id = pad_token_id
-        self.mask_token_id = mask_token_id
-        self.mask_ignore_token_ids = set([*mask_ignore_token_ids, pad_token_id])
+        self.pad_token_id = config.pad_token_id
+        self.mask_token_id = config.mask_token_id
+        self.mask_ignore_token_ids = set([*config.mask_ignore_token_ids, config.pad_token_id])
 
         # sampling temperature
-        self.temperature = temperature
+        self.temperature = config.temperature
 
         # loss weights
-        self.disc_weight = disc_weight
-        self.gen_weight = gen_weight
+        self.disc_weight = config.disc_weight
+        self.gen_weight = config.gen_weight
 
         self.config = config
+
+        
+    def tie_weights(self):
+        self.generator.electra.embeddings.word_embeddings = (
+            self.discriminator.electra.embeddings.word_embeddings
+        )
+        self.generator.electra.embeddings.position_embeddings = (
+            self.discriminator.electra.embeddings.position_embeddings
+        )
+        self.generator.electra.embeddings.token_type_embeddings = (
+            self.discriminator.electra.embeddings.token_type_embeddings
+        )
+
 
     def forward(
         self,
@@ -1284,6 +1298,8 @@ class Electra(ElectraPreTrainedModel):
             disc_labels=disc_labels,
             disc_predictions=disc_predictions,
             masked_input=masked_input,
+            disc_logits=disc_logits,
+            gen_logits=logits
         )._asdict()
 
 
