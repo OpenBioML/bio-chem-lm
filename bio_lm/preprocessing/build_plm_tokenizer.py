@@ -31,8 +31,6 @@ if __name__ == "__main__":
         tokenizer_file=save_path,
         unk_token="[UNK]",
         pad_token="[PAD]",
-        cls_token="[CLS]",
-        sep_token="[SEP]",
         mask_token="[MASK]",
     )
 
