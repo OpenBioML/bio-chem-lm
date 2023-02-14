@@ -3,6 +3,7 @@ from datasets import load_dataset
 from sklearn.utils.class_weight import compute_class_weight
 from torch.utils.data import DataLoader
 from transformers import DefaultDataCollator
+from random import choice
 
 from bio_lm.preprocessing.tokenization import preprocess_fn, tokenize_selfies
 from bio_lm.train_utils import standardize
@@ -77,3 +78,25 @@ def load_finetune_dataset(config, tokenizer, split="train"):
     )
 
     return dataloader, problem_type, num_labels, class_weights
+
+
+
+def impute_aa(examples):
+    vocab = ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y'] 
+    mapping = {"X": vocab, "B": ["D", "N"], "J": ["I", "L"], "Z": ["E", "G"]}
+    imputed = []
+
+    for seq in examples["sequence"]:
+        updated_seq = seq
+        for i, aa in enumerate(seq):
+            if aa in mapping:
+                changed_aa = choice(mapping[aa])
+                updated_seq = updated_seq[:i] + changed_aa + updated_seq[i+1: ]
+
+        imputed.append(updated_seq)
+
+    examples["imputed"] = imputed
+
+    return examples
+            
+    
