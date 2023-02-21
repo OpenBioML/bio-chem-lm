@@ -22,3 +22,6 @@ To launch our hyperparameter search, we are using a combination of `accelerate` 
 wandb sweep sweep.yaml
 wandb agent <sweep_id>
 ```
+
+## Project Doc
+https://docs.google.com/document/d/1HFfZY3RjbRN9SfHJIcxvsA8oTk_XFY7dXmiICnbcUVU/edit
