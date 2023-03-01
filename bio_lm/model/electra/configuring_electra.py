@@ -100,7 +100,7 @@ class ElectraConfig(PretrainedConfig):
         mask_token_id=2,
         pad_token_id=0,
         mask_ignore_token_ids=[],
-        disc_weight=50.0,
+        disc_weight=1.0,
         gen_weight=1.0,
         temperature=1.0, 
         vocab_size=30522,

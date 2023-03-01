@@ -7,7 +7,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from bio_lm.model.electra.configuring_electra import ElectraConfig
-from bio_lm.load import load_config
 from einops import rearrange
 from mup import MuReadout
 from mup.init import normal_
@@ -22,6 +21,7 @@ from transformers.modeling_utils import (PreTrainedModel,
                                          get_activation, prune_linear_layer)
 from transformers.models.electra import load_tf_weights_in_electra
 from typing import Optional, Tuple, Union
+from sklearn.metrics import average_precision_score
 
 # copied from lucidrains and updated
 # constants
@@ -39,7 +39,8 @@ Results = namedtuple(
         "disc_predictions",
         "masked_input",
         "disc_logits",
-        "gen_logits"
+        "gen_logits",
+        "disc_auprc",
     ],
 )
 
@@ -181,8 +182,6 @@ class ElectraEmbeddings(nn.Module):
 
         embeddings = self.dropout(embeddings)
         return embeddings
-
-
 
 
 class ElectraSelfAttention(nn.Module):
@@ -721,7 +720,7 @@ class ElectraModel(ElectraPreTrainedModel):
                 )
 
         extended_attention_mask = self.get_extended_attention_mask(
-            attention_mask, input_shape, device
+            attention_mask, input_shape, None
         )
         head_mask = self.get_head_mask(head_mask, self.config.num_hidden_layers)
 
@@ -1129,60 +1128,50 @@ class HiddenLayerExtractor(nn.Module):
 class Electra(ElectraPreTrainedModel):
     def __init__(
         self,
-        config
+        generator,
+        discriminator,
+        *,
+        config=None,
+        num_tokens=None,
+        discr_dim=-1,
+        discr_layer=-1,
+        mask_prob=0.15,
+        mask_token_id=2,
+        pad_token_id=0,
+        mask_ignore_token_ids=[],
+        disc_weight=50.0,
+        gen_weight=1.0,
+        temperature=1.0,
     ):
         super().__init__(config=config)
 
-        if config.mup:
-            raise NotImplementedError()
+        self.generator = generator
+        self.discriminator = discriminator
 
-        disc_config = load_config(config.disc_config)
-        disc_config["max_position_embeddings"] = config.max_position_embeddings
-        disc_config["vocab_size"] = config.vocab_size
-        disc_config["pad_token_id"] = config.pad_token_id
-
-        discriminator_config = ElectraConfig(**disc_config)
-        self.discriminator = ElectraForPreTraining(discriminator_config)
-
-        gen_config = load_config(config.gen_config)
-        gen_config["max_position_embeddings"] = config.max_position_embeddings
-        gen_config["vocab_size"] = config.vocab_size
-        gen_config["pad_token_id"] = config.pad_token_id
-
-
-        generator_config = ElectraConfig(**gen_config)
-        self.generator = ElectraForMaskedLM(generator_config)
-
-        self.tie_weights()
+        if discr_dim > 0:
+            self.discriminator = nn.Sequential(
+                HiddenLayerExtractor(discriminator, layer=discr_layer),
+                nn.Linear(discr_dim, 1),
+            )
 
         # mlm related probabilities
-        self.mask_prob = config.mask_prob
+        self.mask_prob = mask_prob
+
+        self.num_tokens = num_tokens
 
         # token ids
-        self.pad_token_id = config.pad_token_id
-        self.mask_token_id = config.mask_token_id
-        self.mask_ignore_token_ids = set([*config.mask_ignore_token_ids, config.pad_token_id])
+        self.pad_token_id = pad_token_id
+        self.mask_token_id = mask_token_id
+        self.mask_ignore_token_ids = set([*mask_ignore_token_ids, pad_token_id])
 
         # sampling temperature
-        self.temperature = config.temperature
+        self.temperature = temperature
 
         # loss weights
-        self.disc_weight = config.disc_weight
-        self.gen_weight = config.gen_weight
+        self.disc_weight = disc_weight
+        self.gen_weight = gen_weight
 
         self.config = config
-
-        
-    def tie_weights(self):
-        self.generator.electra.embeddings.word_embeddings = (
-            self.discriminator.electra.embeddings.word_embeddings
-        )
-        self.generator.electra.embeddings.position_embeddings = (
-            self.discriminator.electra.embeddings.position_embeddings
-        )
-        self.generator.electra.embeddings.token_type_embeddings = (
-            self.discriminator.electra.embeddings.token_type_embeddings
-        )
 
 
     def forward(
@@ -1269,6 +1258,8 @@ class Electra(ElectraPreTrainedModel):
 
         # gather metrics
         with torch.no_grad():
+            disc_auprc = average_precision_score(disc_labels.type(torch.float32).cpu().numpy().reshape(-1), disc_logits.type(torch.float32).cpu().numpy().reshape(-1))
+            disc_auprc = torch.tensor(disc_auprc).to(input_ids.device)
             gen_predictions = torch.argmax(logits, dim=-1)
             disc_predictions = torch.round((torch.sign(disc_logits) + 1.0) * 0.5)
             gen_acc = (
@@ -1299,7 +1290,8 @@ class Electra(ElectraPreTrainedModel):
             disc_predictions=disc_predictions,
             masked_input=masked_input,
             disc_logits=disc_logits,
-            gen_logits=logits
+            gen_logits=logits,
+            disc_auprc=disc_auprc
         )._asdict()
 
 
