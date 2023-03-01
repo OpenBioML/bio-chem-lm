@@ -26,6 +26,7 @@ def parse_args():
     parser.add_argument("--attn_num_groups", type=int, default=1, help="Number of groups for attn group norm")
     parser.add_argument("--save_model", action="store_true")
     parser.add_argument("--save_dir", type=str, default="saved_models/")
+    parser.add_argument("--disc_weight", type=float, default=50.0)
 
     # mup params
     parser.add_argument("--base_shapes_dir", type=str, default="shapes", help="directory to save bsh for mup")
