@@ -1,19 +1,13 @@
 import os
-import numpy as np
 import torch
+import yaml
 
 import json
-import yaml
 from datetime import datetime
 from mup import make_base_shapes
 
-from bio_lm.model.electra.config import ElectraConfig
-from bio_lm.model.electra.discriminator import ElectraForPreTraining
-from bio_lm.model.electra.electra import Electra
-from bio_lm.model.electra.generator import ElectraForMaskedLM
-from bio_lm.model.deberta.discriminator import DebertaV2ForPreTraining
-from bio_lm.model.deberta.config import DebertaV2Config
-from bio_lm.model.deberta.generator import DebertaV2ForMaskedLM
+from bio_lm.model.electra.configuring_electra import ElectraConfig
+from bio_lm.model.electra.modeling_electra import Electra, ElectraForPreTraining, ElectraForMaskedLM
 
 from huggingface_hub import hf_hub_download
 from huggingface_hub.utils import RepositoryNotFoundError
@@ -28,11 +22,13 @@ RED = COLORS[0]
 BLUE = COLORS[3]
 CYAN = COLORS[5]
 GREEN = COLORS[1]
+YELLOW = COLORS[2]
 
 name2color = {
     "disc_input": BLUE,
     "right": GREEN,
-    "wrong": RED,
+    "pred_wrong": RED,
+    "missed_token": CYAN,
 }
 
 
@@ -43,12 +39,13 @@ def load_config(file):
 
 
 def make_shapes(base_size, delta_size, config, vocab_size, arch_name, pad_id, mask_id, save_dir):
-    config_base_class = ElectraConfig if arch_name == "electra" else DebertaV2Config
-    disc_base_class = ElectraForPreTraining if arch_name == "electra" else DebertaV2ForPreTraining 
-    gen_base_class = ElectraForMaskedLM if arch_name == "electra" else DebertaV2ForMaskedLM 
+    config_base_class = ElectraConfig
+    disc_base_class = ElectraForPreTraining
+    gen_base_class = ElectraForMaskedLM
 
     disc_config = load_config(BASE.format(arch_name=arch_name, model_type="discriminator", size=delta_size))
     disc_config["mup"] = True
+    disc_config["max_position_embeddings"] = config["max_seq_length"]
     disc_config["vocab_size"] = vocab_size
 
     for key in disc_config:
@@ -60,6 +57,7 @@ def make_shapes(base_size, delta_size, config, vocab_size, arch_name, pad_id, ma
 
     gen_config = load_config(BASE.format(arch_name=arch_name, model_type="generator", size=delta_size))
     gen_config["mup"] = True
+    gen_config["max_position_embeddings"] = config["max_seq_length"]
     gen_config["vocab_size"] = vocab_size
 
     for key in gen_config:
@@ -89,6 +87,7 @@ def make_shapes(base_size, delta_size, config, vocab_size, arch_name, pad_id, ma
             base_disc_config[key] = config[key]
 
     base_disc_config["mup"] = True
+    base_disc_config["max_position_embeddings"] = config["max_seq_length"]
     base_disc_config["vocab_size"] = vocab_size
 
     base_disc_model_config = config_base_class(**base_disc_config)
@@ -101,6 +100,7 @@ def make_shapes(base_size, delta_size, config, vocab_size, arch_name, pad_id, ma
 
     base_gen_config["mup"] = True
     base_gen_config["vocab_size"] = vocab_size
+    base_gen_config["max_position_embeddings"] = config["max_seq_length"]
 
     base_gen_model_config = config_base_class(**base_gen_config)
     base_generator = gen_base_class(base_gen_model_config)
@@ -139,7 +139,7 @@ def tie_weights(generator, discriminator):
         discriminator.electra.embeddings.token_type_embeddings
     )
 
-    
+
 def print_token_diff(tokens, tokenizer, labels, idx, name=None, prepend=""):
     color = name2color.get(name, None)
 
@@ -152,8 +152,13 @@ def print_token_diff(tokens, tokenizer, labels, idx, name=None, prepend=""):
 
     for j in range(len(decoded)):
         if decoded[j] == "[PAD]":
-            first_pad = j
-            break
+            if j + 1 != len(decoded):
+                if decoded[j+1] == "[PAD]":
+                    first_pad = j
+                    break
+            else:
+                first_pad = j
+                break
 
         if color:
             if [idx, j] in indices:
@@ -164,7 +169,8 @@ def print_token_diff(tokens, tokenizer, labels, idx, name=None, prepend=""):
 
 def print_pred_replaced(tokens, tokenizer, pred_replaced, labels, idx):
     right = name2color["right"]
-    wrong = name2color["wrong"]
+    pred_wrong = name2color["pred_wrong"]
+    missed_token = name2color["missed_token"]
 
     decoded_tokens = tokenizer.batch_decode(tokens)
 
@@ -173,17 +179,22 @@ def print_pred_replaced(tokens, tokenizer, pred_replaced, labels, idx):
 
     for j in range(len(decoded)):
         if decoded[j] == "[PAD]":
-            first_pad = j
-            break
+            if j + 1 != len(decoded):
+                if decoded[j+1] == "[PAD]":
+                    first_pad = j
+                    break
+            else:
+                first_pad = j
+                break
 
         if pred_replaced[idx, j]:
             if labels[idx, j]:
                 decoded[j] = right + decoded[j] + ENDC
             else:
-                decoded[j] = wrong + decoded[j] + ENDC
+                decoded[j] = pred_wrong + decoded[j] + ENDC
 
         elif labels[idx, j]:
-            decoded[j] = wrong + decoded[j] + ENDC
+            decoded[j] = missed_token + decoded[j] + ENDC
 
     print("DISCRIMINATOR: " + ": " + " ".join(decoded[:first_pad]))
 
