@@ -87,7 +87,7 @@ def load_data(config, tokenizer, split="train"):
     val_dset = val_dset.with_format("torch")
 
     train_dataloader = DataLoader(
-        val_dset,
+        train_dset,
         # we set mlm to false since we do MLM in the `Electra` model
         collate_fn=DataCollatorForLanguageModeling(tokenizer, mlm=False, mlm_probability=0),
         batch_size=config[f"batch_size"],
